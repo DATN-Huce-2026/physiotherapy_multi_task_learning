@@ -154,7 +154,10 @@ def offset_to_initial_spine_base(
 
     origin = frames[0][0]  # Kinect joint index 0 is SpineBase.
     return [
-        [tuple(point[axis] - origin[axis] for axis in range(3)) for point in frame]
+        [
+            (point[0] - origin[0], point[1] - origin[1], point[2] - origin[2])
+            for point in frame
+        ]
         for frame in frames
     ]
 

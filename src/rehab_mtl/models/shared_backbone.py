@@ -41,9 +41,9 @@ class KeraalSharedBackbone(nn.Module):
         *,
         num_joints: int = 25,
         coordinates_per_joint: int = 3,
-        frame_embedding_size: int = 64,
-        recurrent_hidden_size: int = 64,
-        dropout: float = 0.2,
+        frame_embedding_size: int = 64, # Nếu overfit: giảm xuống 32; nếu underfit: tăng lên 128
+        recurrent_hidden_size: int = 64, # BiGRU hidden size (64 là hợp lý cho dataset nhỏ)
+        dropout: float = 0.4, # Hiện tại là 0.2 -> nên tăng lên 0.3 đến 0.5 để chống overfit
     ) -> None:
         super().__init__()
         self.num_joints = num_joints

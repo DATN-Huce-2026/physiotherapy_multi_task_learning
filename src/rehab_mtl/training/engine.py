@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -46,6 +47,8 @@ def _run_epoch(
     *,
     optimizer: torch.optim.Optimizer | None,
     task_weights: Mapping[str, float] | None,
+    class_weights: Mapping[str, torch.Tensor] | None = None,
+    max_grad_norm: float | None = 1.0,
 ) -> dict[str, Any]:
     training = optimizer is not None
     model.train(training)
@@ -62,8 +65,7 @@ def _run_epoch(
         if batch_size == 0:
             continue
 
-        if training:
-            assert optimizer is not None
+        if optimizer is not None:
             optimizer.zero_grad(set_to_none=True)
 
         with torch.set_grad_enabled(training):
@@ -73,13 +75,16 @@ def _run_epoch(
                 target_ids,
                 target_masks,
                 task_weights=task_weights,
+                class_weights=class_weights,
             )
 
             if not bool(torch.isfinite(total_loss)):
                 raise FloatingPointError("multi-task loss became non-finite")
 
-            if training:
+            if optimizer is not None:
                 total_loss.backward()
+                if max_grad_norm is not None:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm)
                 optimizer.step()
 
         total_loss_sum += float(total_loss.detach()) * batch_size
@@ -122,6 +127,11 @@ def fit(
     epochs: int,
     device: torch.device | str,
     task_weights: Mapping[str, float] | None = None,
+    class_weights: Mapping[str, torch.Tensor] | None = None,
+    max_grad_norm: float | None = 1.0,
+    checkpoint_dir: str | Path | None = None,
+    best_model_filename: str = "best_model.pt",
+    verbose: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the epoch loop and return train/validation metrics for each epoch.
 
@@ -130,12 +140,22 @@ def fit(
     and ``target_masks`` as documented by the model and loss functions. Pass
     re-iterable loaders, such as a PyTorch ``DataLoader``, so batches are
     available again at the start of each epoch.
+
+    If ``checkpoint_dir`` is specified, the model checkpoint with the lowest
+    validation loss is automatically saved as ``best_model_filename``.
     """
     if epochs < 1:
         raise ValueError("epochs must be at least 1")
 
     selected_device = torch.device(device)
     history: list[dict[str, Any]] = []
+
+    save_dir = Path(checkpoint_dir) if checkpoint_dir is not None else None
+    if save_dir is not None:
+        save_dir.mkdir(parents=True, exist_ok=True)
+
+    best_val_loss = float("inf")
+    best_epoch = -1
 
     for epoch_index in range(1, epochs + 1):
         train_metrics = _run_epoch(
@@ -144,6 +164,8 @@ def fit(
             selected_device,
             optimizer=optimizer,
             task_weights=task_weights,
+            class_weights=class_weights,
+            max_grad_norm=max_grad_norm,
         )
         validation_metrics = _run_epoch(
             model,
@@ -151,13 +173,41 @@ def fit(
             selected_device,
             optimizer=None,
             task_weights=task_weights,
+            class_weights=class_weights,
+            max_grad_norm=None,
         )
+
+        val_loss = validation_metrics["loss"]
+        is_best = val_loss < best_val_loss
+
+        if is_best:
+            best_val_loss = val_loss
+            best_epoch = epoch_index
+            if save_dir is not None:
+                torch.save(model.state_dict(), save_dir / best_model_filename)
+
+        if verbose:
+            best_tag = f" -> [BEST SAVED ({best_model_filename})]" if (is_best and save_dir is not None) else ""
+            print(
+                f"Epoch {epoch_index:3d}/{epochs} | "
+                f"Train Loss: {train_metrics['loss']:.4f} | "
+                f"Val Loss: {val_loss:.4f}"
+                f"{best_tag}"
+            )
+
         history.append(
             {
                 "epoch": epoch_index,
                 "train": train_metrics,
                 "validation": validation_metrics,
+                "is_best": is_best,
+                "best_val_loss": best_val_loss,
+                "best_epoch": best_epoch,
             }
         )
 
+    if verbose and save_dir is not None and best_epoch != -1:
+        print(f"\n[OK] Best model checkpoint saved at Epoch {best_epoch} with Val Loss: {best_val_loss:.4f} to: {save_dir / best_model_filename}")
+
     return history
+

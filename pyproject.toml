@@ -11,3 +11,6 @@ dependencies = ["torch>=2.2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pyrefly]
+python-interpreter-path = ".venv/Scripts/python.exe"

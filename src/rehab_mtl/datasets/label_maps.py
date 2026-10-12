@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+
 EXERCISE_TO_ID = {
     "CTK": 0,
     "ELK": 1,
@@ -31,9 +35,18 @@ BODY_PART_TO_ID = {
     "LeftArm": 3,
 }
 
+TASK_MAPPINGS = {
+    "exercise": EXERCISE_TO_ID,
+    "global_evaluation": GLOBAL_EVALUATION_TO_ID,
+    "error_type": ERROR_TYPE_TO_ID,
+    "severity": SEVERITY_TO_ID,
+    "body_part": BODY_PART_TO_ID,
+}
+
+
 def encode_target(
     value: str | None,
-    mapping: dict[str, int],
+    mapping: Mapping[str, int],
     mask: bool,
 ) -> int | None:
     if not mask:

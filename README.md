@@ -14,6 +14,7 @@ are still pending.
 - `data/keraal_subject_split_preview.csv`: a candidate participant-level split
   for review; all clips from each participant share one split.
 - `src/rehab_mtl/datasets/keraal.py`: strict Kinect frame parser and sample reader.
+- `src/rehab_mtl/datasets/keraal_dataset.py`: PyTorch `KeraalMTLDataset`, batch collation (`collate_keraal_mtl`), and `build_keraal_dataloaders`.
 - `scripts/validate_keraal.py`: checks the manifest, source-file joins, label
   values, temporal annotation states, and all Kinect frames.
 - `scripts/build_keraal_targets_preview.py`: builds the target preview without
@@ -22,6 +23,7 @@ are still pending.
   for one clip in memory; it writes no transformed data.
 - `scripts/validate_keraal_mtl_samples.py`: joins each Kinect sequence to its
   proposed targets by `sample_id` and checks masks across the dataset.
+- `scripts/train_baseline.py`: end-to-end multi-task training runner using PyTorch DataLoaders.
 
 The source dataset remains in its original location. The loader does not rewrite,
 normalize, interpolate, or resample it. For v0 it reads the XYZ position values

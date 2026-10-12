@@ -14,12 +14,16 @@ def masked_multitask_cross_entropy(
     target_masks: Mapping[str, torch.Tensor],
     *,
     task_weights: Mapping[str, float] | None = None,
+    class_weights: Mapping[str, torch.Tensor] | None = None,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Compute mean cross-entropy per labeled task, then average tasks.
 
     For each task, only batch rows with a true target mask contribute to that
     task's loss. Target IDs at masked rows are ignored and may use any valid
     placeholder value. Tasks with no labeled rows in the batch are skipped.
+
+    `class_weights` allows specifying a 1D tensor of class weights per task
+    (e.g., to handle severe class imbalance within a task).
 
     Returns the combined loss and the individual active task losses.
     """
@@ -53,9 +57,17 @@ def masked_multitask_cross_entropy(
         if not bool(task_mask.any()):
             continue
 
+        cw: torch.Tensor | None = None
+        if class_weights is not None and task_name in class_weights:
+            cw = class_weights[task_name].to(
+                device=task_logits.device,
+                dtype=task_logits.dtype,
+            )
+
         task_loss = F.cross_entropy(
             task_logits[task_mask],
             task_targets[task_mask],
+            weight=cw,
         )
         weight = 1.0 if task_weights is None else task_weights.get(task_name, 1.0)
         if weight <= 0:

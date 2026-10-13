@@ -96,6 +96,31 @@ def parse_args() -> argparse.Namespace:
         help="Learning rate for Adam optimizer",
     )
     parser.add_argument(
+        "--lr-scheduler",
+        type=str,
+        default="plateau",
+        choices=["none", "plateau", "cosine"],
+        help="Learning rate scheduler ('plateau', 'cosine', or 'none'). Default: 'plateau'",
+    )
+    parser.add_argument(
+        "--lr-patience",
+        type=int,
+        default=3,
+        help="Number of epochs with no validation loss improvement before reducing LR (for plateau). Default: 3",
+    )
+    parser.add_argument(
+        "--lr-factor",
+        type=float,
+        default=0.5,
+        help="Decay factor for plateau scheduler (new_lr = lr * lr_factor). Default: 0.5",
+    )
+    parser.add_argument(
+        "--min-lr",
+        type=float,
+        default=1e-6,
+        help="Minimum learning rate bound for scheduler. Default: 1e-6",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="cuda" if torch.cuda.is_available() else "cpu",
@@ -140,6 +165,12 @@ def main() -> int:
     print(f"Device: {args.device}")
     print(f"KERAAL root: {args.keraal_root}")
     print(f"Epochs: {args.epochs} | Batch size: {args.batch_size} | LR: {args.lr}")
+    if args.lr_scheduler == "plateau":
+        print(f"LR Scheduler:  ReduceLROnPlateau (patience={args.lr_patience}, factor={args.lr_factor}, min_lr={args.min_lr})")
+    elif args.lr_scheduler == "cosine":
+        print(f"LR Scheduler:  CosineAnnealingLR (T_max={args.epochs}, min_lr={args.min_lr})")
+    else:
+        print("LR Scheduler:  Disabled (fixed LR)")
     print(f"Task weights:  {task_weights}")
     print(f"Class weights: {'Enabled (minority penalty)' if class_weights else 'Disabled (uniform)'}")
     print("=" * 60)
@@ -174,6 +205,22 @@ def main() -> int:
     model = KeraalSharedBackbone().to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
+    scheduler = None
+    if args.lr_scheduler == "plateau":
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="min",
+            factor=args.lr_factor,
+            patience=args.lr_patience,
+            min_lr=args.min_lr,
+        )
+    elif args.lr_scheduler == "cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=args.epochs,
+            eta_min=args.min_lr,
+        )
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     print("\nStarting training loop...")
@@ -182,6 +229,7 @@ def main() -> int:
         train_loader,
         val_loader,
         optimizer=optimizer,
+        scheduler=scheduler,
         epochs=args.epochs,
         device=args.device,
         task_weights=task_weights,

@@ -128,6 +128,7 @@ def fit(
     device: torch.device | str,
     task_weights: Mapping[str, float] | None = None,
     class_weights: Mapping[str, torch.Tensor] | None = None,
+    scheduler: Any | None = None,
     max_grad_norm: float | None = 1.0,
     checkpoint_dir: str | Path | None = None,
     best_model_filename: str = "best_model.pt",
@@ -158,6 +159,8 @@ def fit(
     best_epoch = -1
 
     for epoch_index in range(1, epochs + 1):
+        current_lr = optimizer.param_groups[0]["lr"]
+
         train_metrics = _run_epoch(
             model,
             train_batches,
@@ -186,18 +189,32 @@ def fit(
             if save_dir is not None:
                 torch.save(model.state_dict(), save_dir / best_model_filename)
 
+        lr_before_step = current_lr
+        if scheduler is not None:
+            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                scheduler.step(val_loss)
+            else:
+                scheduler.step()
+        lr_after_step = optimizer.param_groups[0]["lr"]
+
         if verbose:
             best_tag = f" -> [BEST SAVED ({best_model_filename})]" if (is_best and save_dir is not None) else ""
             print(
                 f"Epoch {epoch_index:3d}/{epochs} | "
+                f"LR: {lr_before_step:.6f} | "
                 f"Train Loss: {train_metrics['loss']:.4f} | "
                 f"Val Loss: {val_loss:.4f}"
                 f"{best_tag}"
             )
+            if lr_after_step < lr_before_step:
+                print(
+                    f"    ↳ [LR Scheduler] Learning rate reduced: {lr_before_step:.6f} -> {lr_after_step:.6f}"
+                )
 
         history.append(
             {
                 "epoch": epoch_index,
+                "lr": lr_before_step,
                 "train": train_metrics,
                 "validation": validation_metrics,
                 "is_best": is_best,

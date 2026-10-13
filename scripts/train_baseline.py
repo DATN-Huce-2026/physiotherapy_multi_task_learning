@@ -93,7 +93,13 @@ def parse_args() -> argparse.Namespace:
         "--lr",
         type=float,
         default=1e-3,
-        help="Learning rate for Adam optimizer",
+        help="Learning rate for AdamW optimizer",
+    )
+    parser.add_argument(
+        "--weight-decay",
+        type=float,
+        default=1e-4,
+        help="Weight decay (L2 penalty) for AdamW optimizer. Default: 1e-4",
     )
     parser.add_argument(
         "--lr-scheduler",
@@ -164,7 +170,7 @@ def main() -> int:
     print("Rehab MTL — KERAAL Baseline Multi-Task Training")
     print(f"Device: {args.device}")
     print(f"KERAAL root: {args.keraal_root}")
-    print(f"Epochs: {args.epochs} | Batch size: {args.batch_size} | LR: {args.lr}")
+    print(f"Epochs: {args.epochs} | Batch size: {args.batch_size} | LR: {args.lr} | Weight decay: {args.weight_decay}")
     if args.lr_scheduler == "plateau":
         print(f"LR Scheduler:  ReduceLROnPlateau (patience={args.lr_patience}, factor={args.lr_factor}, min_lr={args.min_lr})")
     elif args.lr_scheduler == "cosine":
@@ -203,7 +209,11 @@ def main() -> int:
     print(f"  Test:       {len(test_loader.dataset)} clips ({len(test_loader)} batches)")
 
     model = KeraalSharedBackbone().to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+    )
 
     scheduler = None
     if args.lr_scheduler == "plateau":

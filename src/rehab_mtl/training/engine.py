@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
@@ -40,6 +41,52 @@ def _move_batch_to_device(
     return xyz, lengths, target_ids, target_masks
 
 
+def augment_skeleton_batch(
+    xyz: torch.Tensor,
+    lengths: torch.Tensor,
+    *,
+    max_rotation_degrees: float = 15.0,
+    jitter_std: float = 0.008,
+    scale_range: tuple[float, float] = (0.95, 1.05),
+) -> torch.Tensor:
+    """Tăng cường dữ liệu skeleton ngẫu nhiên trực tiếp trên batch (GPU/CPU).
+
+    1. Xoay ngẫu nhiên quanh trục đứng Y trong khoảng [-max_rotation, +max_rotation] độ.
+    2. Co giãn ngẫu nhiên tỷ lệ cơ thể (scale) trong khoảng [min_scale, max_scale].
+    3. Thêm nhiễu rung tọa độ Gaussian jitter (~8mm) mô phỏng sai số đo của camera Kinect.
+    Các frame đệm (zero padding) được giữ nguyên giá trị 0.
+    """
+    batch_size, time_steps, joints, _ = xyz.shape
+    device = xyz.device
+
+    # 1. Co giãn ngẫu nhiên (Scaling)
+    scale = torch.empty(batch_size, 1, 1, 1, device=device).uniform_(scale_range[0], scale_range[1])
+    out = xyz * scale
+
+    # 2. Xoay ngẫu nhiên quanh trục đứng Y (Y-axis rotation)
+    max_rad = math.radians(max_rotation_degrees)
+    theta = torch.empty(batch_size, 1, 1, device=device).uniform_(-max_rad, max_rad)
+    cos_t = torch.cos(theta)
+    sin_t = torch.sin(theta)
+
+    x = out[..., 0]
+    y = out[..., 1]
+    z = out[..., 2]
+
+    new_x = x * cos_t + z * sin_t
+    new_z = -x * sin_t + z * cos_t
+    out = torch.stack([new_x, y, new_z], dim=-1)
+
+    # 3. Thêm nhiễu Gaussian jitter trên các frame hợp lệ
+    if jitter_std > 0:
+        noise = torch.randn_like(out) * jitter_std
+        time_indices = torch.arange(time_steps, device=device).unsqueeze(0)
+        time_mask = (time_indices < lengths.unsqueeze(1)).unsqueeze(-1).unsqueeze(-1)
+        out = out + noise * time_mask
+
+    return out
+
+
 def _run_epoch(
     model: nn.Module,
     batches: Iterable[Mapping[str, Any]],
@@ -49,6 +96,7 @@ def _run_epoch(
     task_weights: Mapping[str, float] | None,
     class_weights: Mapping[str, torch.Tensor] | None = None,
     max_grad_norm: float | None = 1.0,
+    augment: bool = False,
 ) -> dict[str, Any]:
     training = optimizer is not None
     model.train(training)
@@ -64,6 +112,9 @@ def _run_epoch(
         batch_size = xyz.shape[0]
         if batch_size == 0:
             continue
+
+        if training and augment:
+            xyz = augment_skeleton_batch(xyz, lengths)
 
         if optimizer is not None:
             optimizer.zero_grad(set_to_none=True)
@@ -132,6 +183,7 @@ def fit(
     max_grad_norm: float | None = 1.0,
     checkpoint_dir: str | Path | None = None,
     best_model_filename: str = "best_model.pt",
+    augment: bool = True,
     verbose: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the epoch loop and return train/validation metrics for each epoch.
@@ -169,6 +221,7 @@ def fit(
             task_weights=task_weights,
             class_weights=class_weights,
             max_grad_norm=max_grad_norm,
+            augment=augment,
         )
         validation_metrics = _run_epoch(
             model,
@@ -178,6 +231,7 @@ def fit(
             task_weights=task_weights,
             class_weights=class_weights,
             max_grad_norm=None,
+            augment=False,
         )
 
         val_loss = validation_metrics["loss"]

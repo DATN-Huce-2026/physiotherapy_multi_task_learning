@@ -40,8 +40,8 @@ JOINT_COUNT = 25
 VALUES_PER_JOINT = 7
 VALUES_PER_FRAME = JOINT_COUNT * VALUES_PER_JOINT
 XYZ_VALUES_PER_FRAME = JOINT_COUNT * 3
-EXPECTED_SAMPLE_COUNT = 301
-EXPECTED_GROUP_COUNTS = {"group1A": 250, "group2A": 51}
+EXPECTED_SAMPLE_COUNT = 841
+EXPECTED_GROUP_COUNTS = {"group1A": 250, "group2A": 51, "group3": 540}
 
 PATH_COLUMNS = (
     "kinect_path",
@@ -65,6 +65,7 @@ LABEL_FIELDS = {
 }
 MTL_TARGET_FIELDS = (
     "exercise",
+    "exercise_error_class",
     "global_evaluation",
     "error_type",
     "severity",
@@ -206,6 +207,17 @@ def load_keraal_sample(
             row[f"annotator_{annotator}_temporal_error_event_count"]
         )
         event_count = int(count_text) if count_text is not None else None
+        annotation_path = _optional_text(row.get(f"annotator_{annotator}_xml_path"))
+        if status is None:
+            if annotation_path is not None or event_count is not None:
+                raise ValueError(
+                    f"{sample_id}: missing temporal status for an annotated source"
+                )
+            temporal_annotations[annotator] = {
+                "status": None,
+                "event_count": None,
+            }
+            continue
         if status == "track_absent" and event_count is not None:
             raise ValueError(f"{sample_id}: absent temporal track must have blank event count")
         if status == "track_empty" and event_count != 0:
@@ -355,7 +367,22 @@ def validate_keraal_manifest(manifest_path: str | Path, keraal_root: str | Path)
 
     for row in rows:
         sample_id = row["sample_id"]
-        for column in PATH_COLUMNS:
+        if row["group"] == "group3":
+            path_columns = (
+                "kinect_path",
+                "video_path",
+                "openpose_path",
+                "blazepose_path",
+                "vicon_path",
+            )
+            annotation_paths = ("annotator_a_xml_path", "annotator_b_xml_path")
+            if any(_optional_text(row.get(column)) for column in annotation_paths):
+                raise ValueError(f"{sample_id}: group3 should not have annotator XML paths")
+            if not _optional_text(row.get("group3_label_code")):
+                raise ValueError(f"{sample_id}: missing group3 filename label code")
+        else:
+            path_columns = PATH_COLUMNS
+        for column in path_columns:
             relative_path = _optional_text(row[column])
             if relative_path is None:
                 raise ValueError(f"{sample_id}: missing {column}")

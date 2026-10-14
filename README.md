@@ -7,18 +7,25 @@ are still pending.
 
 ## Current KERAAL files
 
-- `data/keraal_manifest.csv`: one row per recording (301 rows), with source paths
-  relative to the KERAAL dataset root and the two annotators' labels kept apart.
-- `data/keraal_targets_preview.csv`: a review-only table of proposed clip-level
-  targets and masks; it is derived from the manifest and is not a training set.
+- `data/keraal_manifest.csv`: one row per recording (841 rows) from group1A,
+  group2A, and group3, with source paths relative to the KERAAL dataset root.
+  Annotator labels are kept apart; group3 filename labels are stored as raw codes.
+- `data/keraal_targets_preview.csv`: a review table of clip-level targets and
+  masks. It preserves raw Group3 filename codes and adds a shared four-class
+  `exercise_error_class` target, plus mapped global-evaluation and error-type
+  targets for Group3.
 - `data/keraal_subject_split_preview.csv`: a candidate participant-level split
-  for review; all clips from each participant share one split.
+  for review; all clips from each participant share one split. Group3 P1/P2/P3
+  are assigned to train/validation/test respectively.
 - `src/rehab_mtl/datasets/keraal.py`: strict Kinect frame parser and sample reader.
 - `src/rehab_mtl/datasets/keraal_dataset.py`: PyTorch `KeraalMTLDataset`, batch collation (`collate_keraal_mtl`), and `build_keraal_dataloaders`.
 - `scripts/validate_keraal.py`: checks the manifest, source-file joins, label
   values, temporal annotation states, and all Kinect frames.
 - `scripts/build_keraal_targets_preview.py`: builds the target preview without
   changing the manifest or source dataset.
+- `scripts/build_keraal_group3_csvs.py`: reads group3 Kinect and matching
+  modality files, then updates the three CSVs. It preserves raw filename codes
+  and writes mapped targets to the derived target preview.
 - `scripts/preview_kinect_preprocessing.py`: shows a proposed coordinate offset
   for one clip in memory; it writes no transformed data.
 - `scripts/validate_keraal_mtl_samples.py`: joins each Kinect sequence to its
@@ -38,12 +45,25 @@ From the project root, run:
 python3 scripts/validate_keraal.py
 ```
 
-The default dataset root is `~/Documents/KERAAL`. Override it when the dataset is
-stored elsewhere:
+The default dataset root is `~/Downloads/KERAAL`. Override it when the dataset
+is stored elsewhere:
 
 ```bash
 python3 scripts/validate_keraal.py --keraal-root /path/to/KERAAL
 ```
+
+To rebuild the manifest, target preview, and subject split after adding group3:
+
+```bash
+python3 scripts/build_keraal_group3_csvs.py --keraal-root /path/to/KERAAL
+```
+
+Group3 has 540 recordings with Kinect, video, OpenPose, BlazePose, and Vicon
+files, but no annotator XML files. Code `C` maps to `Correct`; the `E1`, `E2`,
+and `E3` prefixes in codes such as `E1B1` map to `Error1`, `Error2`, and
+`Error3`. The `B1`-`B3` suffix remains in the raw code and is not interpreted as
+another target. Each derived target records its mapping in a resolution column.
+Severity and body-part targets remain masked for Group3.
 
 The validator is read-only. It fails with the sample ID and line number when a
 Kinect frame does not contain exactly 175 finite numeric values, or when its
@@ -70,6 +90,14 @@ values, that head is masked for that clip. A blank is not converted to `none`.
 Exercise code comes from the manifest metadata. The preview also records review
 flags for label combinations that need human interpretation. These rules must be
 reviewed before the preview is used for training.
+
+The shared `exercise_error_class` target uses `Correct`, `Error1`, `Error2`, and
+`Error3`. Group3 codes map through their leading error prefix; Group1A/Group2A
+use a resolved `Correct` global label or a resolved `Error1`-`Error3` label.
+Incomplete, motionless, `Other`, unsupported, and disputed cases are masked for
+this head. The four-class task follows the KERAAL experiment described in
+[Marusic et al. (2025)](https://arxiv.org/abs/2504.13866). Raw labels and
+per-task masks remain available for review.
 
 Rebuild the preview with:
 

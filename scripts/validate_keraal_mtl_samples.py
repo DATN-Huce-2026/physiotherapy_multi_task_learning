@@ -46,7 +46,7 @@ def main() -> int:
     parser.add_argument(
         "--keraal-root",
         type=Path,
-        default=Path.home() / "Documents" / "KERAAL",
+        default=Path.home() / "Downloads" / "KERAAL",
     )
     parser.add_argument(
         "--relative-to-initial-spine-base",

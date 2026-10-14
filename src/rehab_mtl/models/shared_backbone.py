@@ -9,6 +9,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 from rehab_mtl.datasets.label_maps import (
     BODY_PART_TO_ID,
     ERROR_TYPE_TO_ID,
+    EXERCISE_ERROR_CLASS_TO_ID,
     EXERCISE_TO_ID,
     GLOBAL_EVALUATION_TO_ID,
     SEVERITY_TO_ID,
@@ -17,6 +18,7 @@ from rehab_mtl.datasets.label_maps import (
 
 TASK_MAPPINGS = {
     "exercise": EXERCISE_TO_ID,
+    "exercise_error_class": EXERCISE_ERROR_CLASS_TO_ID,
     "global_evaluation": GLOBAL_EVALUATION_TO_ID,
     "error_type": ERROR_TYPE_TO_ID,
     "severity": SEVERITY_TO_ID,

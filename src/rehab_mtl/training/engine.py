@@ -228,3 +228,133 @@ def fit(
 
     return history
 
+
+@torch.no_grad()
+def evaluate(
+    model: nn.Module,
+    batches: Iterable[Mapping[str, Any]],
+    device: torch.device | str,
+    *,
+    task_weights: Mapping[str, float] | None = None,
+    class_weights: Mapping[str, torch.Tensor] | None = None,
+) -> dict[str, Any]:
+    """Chạy đánh giá mô hình trên tập dữ liệu (test hoặc validation), tính loss, accuracy và macro F1.
+
+    Trả về từ điển gồm:
+        - "loss": weighted multi-task loss trung bình
+        - "task_losses": loss trung bình theo từng task
+        - "task_accuracies": độ chính xác (accuracy) theo từng task (chỉ tính trên mẫu có mask hợp lệ)
+        - "task_macro_f1": Macro-averaged F1 score theo từng task
+        - "task_sample_counts": số lượng mẫu có nhãn hợp lệ theo từng task
+        - "sample_count": tổng số clip được đánh giá
+        - "batch_count": tổng số batch
+    """
+    selected_device = torch.device(device)
+    model.eval()
+
+    total_loss_sum = 0.0
+    sample_count = 0
+    task_loss_sums: dict[str, float] = {}
+    task_target_counts: dict[str, int] = {}
+    batch_count = 0
+
+    all_preds: dict[str, list[torch.Tensor]] = {}
+    all_targets: dict[str, list[torch.Tensor]] = {}
+    all_masks: dict[str, list[torch.Tensor]] = {}
+
+    for batch in batches:
+        xyz, lengths, target_ids, target_masks = _move_batch_to_device(batch, selected_device)
+        batch_size = xyz.shape[0]
+        if batch_size == 0:
+            continue
+
+        logits = model(xyz, lengths)
+        total_loss, task_losses = masked_multitask_cross_entropy(
+            logits,
+            target_ids,
+            target_masks,
+            task_weights=task_weights,
+            class_weights=class_weights,
+        )
+
+        total_loss_sum += float(total_loss.detach()) * batch_size
+        sample_count += batch_size
+        batch_count += 1
+
+        for task_name, task_loss in task_losses.items():
+            valid_count = int(target_masks[task_name].sum().item())
+            task_loss_sums[task_name] = (
+                task_loss_sums.get(task_name, 0.0)
+                + float(task_loss.detach()) * valid_count
+            )
+            task_target_counts[task_name] = (
+                task_target_counts.get(task_name, 0) + valid_count
+            )
+
+        for task_name, task_logits in logits.items():
+            if task_name in target_ids and task_name in target_masks:
+                preds = task_logits.argmax(dim=-1).detach().cpu()
+                targs = target_ids[task_name].detach().cpu()
+                masks = target_masks[task_name].detach().cpu()
+
+                all_preds.setdefault(task_name, []).append(preds)
+                all_targets.setdefault(task_name, []).append(targs)
+                all_masks.setdefault(task_name, []).append(masks)
+
+    if batch_count == 0:
+        raise ValueError("the data loader produced no non-empty batches")
+
+    mean_task_losses = {
+        task_name: round(loss_sum / task_target_counts[task_name], 4)
+        for task_name, loss_sum in task_loss_sums.items()
+        if task_target_counts[task_name] > 0
+    }
+
+    task_accuracies: dict[str, float] = {}
+    task_macro_f1: dict[str, float] = {}
+
+    for task_name in all_preds:
+        preds = torch.cat(all_preds[task_name], dim=0)
+        targets = torch.cat(all_targets[task_name], dim=0)
+        masks = torch.cat(all_masks[task_name], dim=0)
+
+        valid_preds = preds[masks]
+        valid_targets = targets[masks]
+        num_valid = len(valid_targets)
+
+        if num_valid == 0:
+            task_accuracies[task_name] = 0.0
+            task_macro_f1[task_name] = 0.0
+            continue
+
+        acc = float((valid_preds == valid_targets).sum().item()) / num_valid
+        task_accuracies[task_name] = round(acc, 4)
+
+        unique_classes = torch.unique(torch.cat([valid_preds, valid_targets])).tolist()
+        f1_scores: list[float] = []
+        for c in unique_classes:
+            tp = float(((valid_preds == c) & (valid_targets == c)).sum().item())
+            fp = float(((valid_preds == c) & (valid_targets != c)).sum().item())
+            fn = float(((valid_preds != c) & (valid_targets == c)).sum().item())
+            support = tp + fn
+            if support == 0:
+                continue
+            precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            f1_scores.append(f1)
+
+        macro_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
+        task_macro_f1[task_name] = round(macro_f1, 4)
+
+    return {
+        "loss": round(total_loss_sum / sample_count, 4),
+        "task_losses": mean_task_losses,
+        "task_accuracies": task_accuracies,
+        "task_macro_f1": task_macro_f1,
+        "task_sample_counts": task_target_counts,
+        "sample_count": sample_count,
+        "batch_count": batch_count,
+    }
+
+

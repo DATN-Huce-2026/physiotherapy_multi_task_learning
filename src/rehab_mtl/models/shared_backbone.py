@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from rehab_mtl.datasets.label_maps import (
     BODY_PART_TO_ID,
@@ -33,9 +33,8 @@ class KeraalSharedBackbone(nn.Module):
     real frame count for each sequence before batch padding. The frame encoder
     and bidirectional GRU are shared by all task heads.
 
-    Each head returns raw class logits with shape ``[batch, class_count]``.
-    This model predicts one label per whole clip; it does not predict a label
-    for each frame or locate the time of an error.
+    Supports Masked Global Average Pooling over all valid frames to capture
+    motion deviations throughout the entire exercise clip (rather than only the final frame).
     """
 
     def __init__(
@@ -43,13 +42,15 @@ class KeraalSharedBackbone(nn.Module):
         *,
         num_joints: int = 25,
         coordinates_per_joint: int = 3,
-        frame_embedding_size: int = 64, # Nếu overfit: giảm xuống 32; nếu underfit: tăng lên 128
-        recurrent_hidden_size: int = 64, # BiGRU hidden size (64 là hợp lý cho dataset nhỏ)
-        dropout: float = 0.4, # Hiện tại là 0.2 -> nên tăng lên 0.3 đến 0.5 để chống overfit
+        frame_embedding_size: int = 64,
+        recurrent_hidden_size: int = 64,
+        dropout: float = 0.4,
+        pooling: str = "mean",  # "mean" (Masked Global Average Pooling) or "last"
     ) -> None:
         super().__init__()
         self.num_joints = num_joints
         self.coordinates_per_joint = coordinates_per_joint
+        self.pooling = pooling
 
         frame_input_size = num_joints * coordinates_per_joint
         self.frame_encoder = nn.Sequential(
@@ -66,6 +67,8 @@ class KeraalSharedBackbone(nn.Module):
             batch_first=True,
             bidirectional=True,
         )
+
+        self.feature_dropout = nn.Dropout(dropout)
 
         shared_feature_size = recurrent_hidden_size * 2
         self.heads = nn.ModuleDict(
@@ -112,14 +115,30 @@ class KeraalSharedBackbone(nn.Module):
             batch_first=True,
             enforce_sorted=False,
         )
-        _, final_hidden = self.shared_temporal_backbone(packed_features)
+        packed_outputs, final_hidden = self.shared_temporal_backbone(packed_features)
 
-        # For a bidirectional GRU, the final layer's forward and backward
-        # summaries are the last two entries in final_hidden.
-        shared_features = torch.cat(
-            (final_hidden[-2], final_hidden[-1]),
-            dim=1,
-        )
+        if self.pooling == "mean":
+            # Unpack GRU sequence outputs: [batch, padded_time, 2 * hidden_size]
+            gru_outputs, _ = pad_packed_sequence(
+                packed_outputs,
+                batch_first=True,
+                total_length=padded_time,
+            )
+
+            # Masked Global Average Pooling across valid frames (ignoring zero pads)
+            time_indices = torch.arange(padded_time, device=xyz.device).unsqueeze(0)
+            time_mask = (time_indices < lengths.unsqueeze(1)).unsqueeze(-1)
+            masked_outputs = gru_outputs * time_mask
+            summed = masked_outputs.sum(dim=1)
+            pooled_features = summed / lengths.unsqueeze(1).clamp(min=1).to(dtype=summed.dtype)
+            shared_features = self.feature_dropout(pooled_features)
+        else:
+            # Fallback: concatenate the final forward and backward summaries
+            shared_features = torch.cat(
+                (final_hidden[-2], final_hidden[-1]),
+                dim=1,
+            )
+            shared_features = self.feature_dropout(shared_features)
 
         return {
             task_name: head(shared_features)

@@ -230,6 +230,19 @@ def parse_args() -> argparse.Namespace:
         choices=["auto", "default"],
         help="Mode for class weights: 'auto' (computed dynamically from train split) or 'default' (calibrated DEFAULT_CLASS_WEIGHTS). Default: 'auto'",
     )
+    parser.add_argument(
+        "--pooling",
+        type=str,
+        default="mean",
+        choices=["mean", "last"],
+        help="Temporal pooling method: 'mean' (Masked Global Average Pooling) or 'last' (final hidden state). Default: 'mean'",
+    )
+    parser.add_argument(
+        "--augment",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Apply skeleton data augmentation (random Y-rotation, jitter, scaling) to train batches. (default: True, use --no-augment to disable)",
+    )
     return parser.parse_args()
 
 
@@ -247,6 +260,8 @@ def main() -> int:
         print(f"LR Scheduler:  CosineAnnealingLR (T_max={args.epochs}, min_lr={args.min_lr})")
     else:
         print("LR Scheduler:  Disabled (fixed LR)")
+    print(f"Pooling:       {'MEAN (Masked Global Average Pooling)' if args.pooling == 'mean' else 'LAST (Final BiGRU hidden state)'}")
+    print(f"Data augment:  {'Enabled (Y-rotation ±15°, jitter 8mm, scale 0.95-1.05)' if args.augment else 'Disabled'}")
     print(f"Task weights:  {task_weights}")
     print(f"Class weights: {f'Enabled (mode={args.class_weights_mode})' if args.use_class_weights else 'Disabled (uniform)'}")
     print("=" * 60)
@@ -291,7 +306,7 @@ def main() -> int:
             for task, w in class_weights.items():
                 print(f"  {task:20s}: {w.round(decimals=3).tolist()}")
 
-    model = KeraalSharedBackbone().to(args.device)
+    model = KeraalSharedBackbone(pooling=args.pooling).to(args.device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,
@@ -329,6 +344,7 @@ def main() -> int:
         class_weights=class_weights,
         checkpoint_dir=args.output_dir,
         best_model_filename="best_model.pt",
+        augment=args.augment,
         verbose=True,
     )
 

@@ -14,9 +14,9 @@ from rehab_mtl.datasets.keraal import load_keraal_mtl_sample
 from rehab_mtl.datasets.label_maps import TASK_MAPPINGS, encode_target
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "data" / "keraal_manifest.csv"
-DEFAULT_TARGETS_PATH = PROJECT_ROOT / "data" / "keraal_targets_preview.csv"
-DEFAULT_SPLIT_PATH = PROJECT_ROOT / "data" / "keraal_subject_split_preview.csv"
+DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "data" / "keraal" / "keraal_manifest.csv"
+DEFAULT_TARGETS_PATH = PROJECT_ROOT / "data" / "keraal" / "keraal_targets_preview.csv"
+DEFAULT_SPLIT_PATH = PROJECT_ROOT / "data" / "keraal" / "keraal_subject_split_preview.csv"
 DEFAULT_KERAAL_ROOT = Path.home() / "Documents" / "KERAAL"
 
 

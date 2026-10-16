@@ -14,3 +14,4 @@ where = ["src"]
 
 [tool.pyrefly]
 python-interpreter-path = ".venv/Scripts/python.exe"
+search-path = ["src", "scripts", "scripts/keraal"]

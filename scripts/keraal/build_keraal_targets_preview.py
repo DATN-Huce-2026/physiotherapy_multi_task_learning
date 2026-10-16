@@ -13,7 +13,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 ANNOTATORS = ("a", "b")
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
@@ -84,7 +84,10 @@ def _resolve_exercise_error_class(
 ) -> tuple[str, bool, str]:
     """Resolve the shared four-class target without filling uncertain labels."""
     if group == "group3":
-        if group3_label_code not in GROUP3_LABEL_CODE_TO_EXERCISE_ERROR_CLASS:
+        if (
+            group3_label_code is None
+            or group3_label_code not in GROUP3_LABEL_CODE_TO_EXERCISE_ERROR_CLASS
+        ):
             raise ValueError(f"unmapped group3 filename code: {group3_label_code!r}")
         if group3_label_code == "C":
             return "Correct", True, "group3_filename_code_C"
@@ -232,6 +235,7 @@ def build_preview(manifest: Path, output: Path) -> dict[str, Counter[str]]:
                     counters[field][resolution] += 1
 
             if row.get("group") == "group3":
+                assert group3_label is not None
                 derived_group3_targets = {
                     "global_evaluation": GROUP3_LABEL_CODE_TO_GLOBAL_EVALUATION[
                         group3_label
@@ -288,12 +292,12 @@ def main() -> int:
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_manifest.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_manifest.csv",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_targets_preview.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_targets_preview.csv",
     )
     args = parser.parse_args()
 

@@ -14,7 +14,7 @@ from typing import Any
 
 import torch
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from rehab_mtl.datasets import TASK_MAPPINGS, build_keraal_dataloaders  # noqa: E402
@@ -126,19 +126,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_manifest.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_manifest.csv",
         help="Path to KERAAL manifest CSV",
     )
     parser.add_argument(
         "--targets",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_targets_preview.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_targets_preview.csv",
         help="Path to KERAAL targets preview CSV",
     )
     parser.add_argument(
         "--splits",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_subject_split_preview.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_subject_split_preview.csv",
         help="Path to subject split CSV",
     )
     parser.add_argument(

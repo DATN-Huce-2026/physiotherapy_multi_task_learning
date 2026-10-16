@@ -7,30 +7,30 @@ are still pending.
 
 ## Current KERAAL files
 
-- `data/keraal_manifest.csv`: one row per recording (841 rows) from group1A,
+- `data/keraal/keraal_manifest.csv`: one row per recording (841 rows) from group1A,
   group2A, and group3, with source paths relative to the KERAAL dataset root.
   Annotator labels are kept apart; group3 filename labels are stored as raw codes.
-- `data/keraal_targets_preview.csv`: a review table of clip-level targets and
+- `data/keraal/keraal_targets_preview.csv`: a review table of clip-level targets and
   masks. It preserves raw Group3 filename codes and adds a shared four-class
   `exercise_error_class` target, plus mapped global-evaluation and error-type
   targets for Group3.
-- `data/keraal_subject_split_preview.csv`: a candidate participant-level split
+- `data/keraal/keraal_subject_split_preview.csv`: a candidate participant-level split
   for review; all clips from each participant share one split. Group3 P1/P2/P3
   are assigned to train/validation/test respectively.
 - `src/rehab_mtl/datasets/keraal.py`: strict Kinect frame parser and sample reader.
 - `src/rehab_mtl/datasets/keraal_dataset.py`: PyTorch `KeraalMTLDataset`, batch collation (`collate_keraal_mtl`), and `build_keraal_dataloaders`.
-- `scripts/validate_keraal.py`: checks the manifest, source-file joins, label
+- `scripts/keraal/validate_keraal.py`: checks the manifest, source-file joins, label
   values, temporal annotation states, and all Kinect frames.
-- `scripts/build_keraal_targets_preview.py`: builds the target preview without
+- `scripts/keraal/build_keraal_targets_preview.py`: builds the target preview without
   changing the manifest or source dataset.
-- `scripts/build_keraal_group3_csvs.py`: reads group3 Kinect and matching
+- `scripts/keraal/build_keraal_group3_csvs.py`: reads group3 Kinect and matching
   modality files, then updates the three CSVs. It preserves raw filename codes
   and writes mapped targets to the derived target preview.
-- `scripts/preview_kinect_preprocessing.py`: shows a proposed coordinate offset
+- `scripts/keraal/preview_kinect_preprocessing.py`: shows a proposed coordinate offset
   for one clip in memory; it writes no transformed data.
-- `scripts/validate_keraal_mtl_samples.py`: joins each Kinect sequence to its
+- `scripts/keraal/validate_keraal_mtl_samples.py`: joins each Kinect sequence to its
   proposed targets by `sample_id` and checks masks across the dataset.
-- `scripts/train_baseline.py`: end-to-end multi-task training runner using PyTorch DataLoaders.
+- `scripts/keraal/train_baseline.py`: end-to-end multi-task training runner using PyTorch DataLoaders.
 
 The source dataset remains in its original location. The loader does not rewrite,
 normalize, interpolate, or resample it. For v0 it reads the XYZ position values
@@ -42,20 +42,20 @@ KERAAL format README.
 From the project root, run:
 
 ```bash
-python3 scripts/validate_keraal.py
+python3 scripts/keraal/validate_keraal.py
 ```
 
 The default dataset root is `~/Downloads/KERAAL`. Override it when the dataset
 is stored elsewhere:
 
 ```bash
-python3 scripts/validate_keraal.py --keraal-root /path/to/KERAAL
+python3 scripts/keraal/validate_keraal.py --keraal-root /path/to/KERAAL
 ```
 
 To rebuild the manifest, target preview, and subject split after adding group3:
 
 ```bash
-python3 scripts/build_keraal_group3_csvs.py --keraal-root /path/to/KERAAL
+python3 scripts/keraal/build_keraal_group3_csvs.py --keraal-root /path/to/KERAAL
 ```
 
 Group3 has 540 recordings with Kinect, video, OpenPose, BlazePose, and Vicon
@@ -102,19 +102,19 @@ per-task masks remain available for review.
 Rebuild the preview with:
 
 ```bash
-python3 scripts/build_keraal_targets_preview.py
+python3 scripts/keraal/build_keraal_targets_preview.py
 ```
 
 Preview a coordinate offset for one clip with:
 
 ```bash
-python3 scripts/preview_kinect_preprocessing.py --sample-id G1A-CTK-R1-Brest-038
+python3 scripts/keraal/preview_kinect_preprocessing.py --sample-id G1A-CTK-R1-Brest-038
 ```
 
 Check Kinect-to-target joins for all samples with:
 
 ```bash
-python3 scripts/validate_keraal_mtl_samples.py --relative-to-initial-spine-base
+python3 scripts/keraal/validate_keraal_mtl_samples.py --relative-to-initial-spine-base
 ```
 
 The validator reads one clip at a time. The target preview is still provisional;

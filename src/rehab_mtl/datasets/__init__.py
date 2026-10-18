@@ -18,6 +18,7 @@ from rehab_mtl.datasets.keraal_dataset import (
 from rehab_mtl.datasets.kimore import (
     load_kimore_joint_xyz,
     load_kimore_sample,
+    validate_kimore_manifest,
 )
 from rehab_mtl.datasets.kimore_dataset import (
     KimoreMTLDataset,
@@ -58,4 +59,5 @@ __all__ = [
     "load_kimore_sample",
     "offset_to_initial_spine_base",
     "validate_keraal_manifest",
+    "validate_kimore_manifest",
 ]

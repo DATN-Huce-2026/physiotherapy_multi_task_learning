@@ -15,6 +15,15 @@ from rehab_mtl.datasets.keraal_dataset import (
     build_keraal_dataloaders,
     collate_keraal_mtl,
 )
+from rehab_mtl.datasets.kimore import (
+    load_kimore_joint_xyz,
+    load_kimore_sample,
+)
+from rehab_mtl.datasets.kimore_dataset import (
+    KimoreMTLDataset,
+    build_kimore_dataloaders,
+    collate_kimore_mtl,
+)
 from rehab_mtl.datasets.label_maps import (
     BODY_PART_TO_ID,
     ERROR_TYPE_TO_ID,
@@ -33,15 +42,20 @@ __all__ = [
     "JOINT_COUNT",
     "JOINT_NAMES",
     "KeraalMTLDataset",
+    "KimoreMTLDataset",
     "MTL_TARGET_FIELDS",
     "SEVERITY_TO_ID",
     "TASK_MAPPINGS",
     "build_keraal_dataloaders",
+    "build_kimore_dataloaders",
     "collate_keraal_mtl",
+    "collate_kimore_mtl",
     "encode_target",
     "load_keraal_mtl_sample",
     "load_keraal_sample",
     "load_kinect_xyz",
+    "load_kimore_joint_xyz",
+    "load_kimore_sample",
     "offset_to_initial_spine_base",
     "validate_keraal_manifest",
 ]

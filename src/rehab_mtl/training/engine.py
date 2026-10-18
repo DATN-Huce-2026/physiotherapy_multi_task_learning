@@ -21,6 +21,7 @@ def _move_batch_to_device(
     torch.Tensor,
     dict[str, torch.Tensor],
     dict[str, torch.Tensor],
+    dict[str, torch.Tensor],
 ]:
     """Move the documented batch fields to the selected device."""
     required_fields = {"xyz", "lengths", "target_ids", "target_masks"}
@@ -38,7 +39,12 @@ def _move_batch_to_device(
         task: values.to(device=device, dtype=torch.bool)
         for task, values in batch["target_masks"].items()
     }
-    return xyz, lengths, target_ids, target_masks
+    raw_regression = batch.get("regression_targets", {})
+    regression_targets = {
+        task: values.to(device=device, dtype=torch.float32)
+        for task, values in raw_regression.items()
+    }
+    return xyz, lengths, target_ids, target_masks, regression_targets
 
 
 def augment_skeleton_batch(
@@ -108,7 +114,7 @@ def _run_epoch(
     batch_count = 0
 
     for batch in batches:
-        xyz, lengths, target_ids, target_masks = _move_batch_to_device(batch, device)
+        xyz, lengths, target_ids, target_masks, regression_targets = _move_batch_to_device(batch, device)
         batch_size = xyz.shape[0]
         if batch_size == 0:
             continue
@@ -125,6 +131,7 @@ def _run_epoch(
                 logits,
                 target_ids,
                 target_masks,
+                regression_targets=regression_targets,
                 task_weights=task_weights,
                 class_weights=class_weights,
             )
@@ -317,7 +324,7 @@ def evaluate(
     all_masks: dict[str, list[torch.Tensor]] = {}
 
     for batch in batches:
-        xyz, lengths, target_ids, target_masks = _move_batch_to_device(batch, selected_device)
+        xyz, lengths, target_ids, target_masks, regression_targets = _move_batch_to_device(batch, selected_device)
         batch_size = xyz.shape[0]
         if batch_size == 0:
             continue
@@ -327,6 +334,7 @@ def evaluate(
             logits,
             target_ids,
             target_masks,
+            regression_targets=regression_targets,
             task_weights=task_weights,
             class_weights=class_weights,
         )
@@ -346,7 +354,21 @@ def evaluate(
             )
 
         for task_name, task_logits in logits.items():
-            if task_name in target_ids and task_name in target_masks:
+            if task_name == "quality":
+                if "quality" in target_masks:
+                    q_targets = (
+                        regression_targets.get("quality")
+                        if "quality" in regression_targets
+                        else target_ids.get("quality")
+                    )
+                    if q_targets is not None:
+                        preds = task_logits.squeeze(-1).detach().cpu()
+                        targs = q_targets.detach().cpu()
+                        masks = target_masks["quality"].detach().cpu()
+                        all_preds.setdefault("quality", []).append(preds)
+                        all_targets.setdefault("quality", []).append(targs)
+                        all_masks.setdefault("quality", []).append(masks)
+            elif task_name in target_ids and task_name in target_masks:
                 preds = task_logits.argmax(dim=-1).detach().cpu()
                 targs = target_ids[task_name].detach().cpu()
                 masks = target_masks[task_name].detach().cpu()
@@ -366,6 +388,8 @@ def evaluate(
 
     task_accuracies: dict[str, float] = {}
     task_macro_f1: dict[str, float] = {}
+    task_mae: dict[str, float] = {}
+    task_rmse: dict[str, float] = {}
 
     for task_name in all_preds:
         preds = torch.cat(all_preds[task_name], dim=0)
@@ -377,8 +401,19 @@ def evaluate(
         num_valid = len(valid_targets)
 
         if num_valid == 0:
-            task_accuracies[task_name] = 0.0
-            task_macro_f1[task_name] = 0.0
+            if task_name == "quality":
+                task_mae[task_name] = 0.0
+                task_rmse[task_name] = 0.0
+            else:
+                task_accuracies[task_name] = 0.0
+                task_macro_f1[task_name] = 0.0
+            continue
+
+        if task_name == "quality":
+            mae = float(torch.abs(valid_preds - valid_targets).mean().item())
+            rmse = float(torch.sqrt(torch.mean((valid_preds - valid_targets) ** 2)).item())
+            task_mae[task_name] = round(mae, 4)
+            task_rmse[task_name] = round(rmse, 4)
             continue
 
         acc = float((valid_preds == valid_targets).sum().item()) / num_valid
@@ -406,6 +441,8 @@ def evaluate(
         "task_losses": mean_task_losses,
         "task_accuracies": task_accuracies,
         "task_macro_f1": task_macro_f1,
+        "task_mae": task_mae,
+        "task_rmse": task_rmse,
         "task_sample_counts": task_target_counts,
         "sample_count": sample_count,
         "batch_count": batch_count,

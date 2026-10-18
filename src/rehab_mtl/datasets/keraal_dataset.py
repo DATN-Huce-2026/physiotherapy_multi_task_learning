@@ -137,12 +137,16 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
                 # Placeholder integer for masked target; masked out during loss calculation
                 target_ids[task_name] = 0
 
+        # KERAAL does not contain continuous clinical quality scores
+        target_masks["quality"] = False
+
         item = {
             "sample_id": sample_id,
             "xyz": xyz_tensor,
             "length": len(sample["xyz"]),
             "target_ids": target_ids,
             "target_masks": target_masks,
+            "quality_target": torch.tensor(0.0, dtype=torch.float32),
             "group": sample["group"],
             "subject_id": sample["subject_id"],
             "exercise_code": sample["exercise_code"],
@@ -186,11 +190,17 @@ def collate_keraal_mtl(batch: list[dict[str, Any]]) -> dict[str, Any]:
         )
         for task in task_names
     }
+    all_mask_keys = set(batch[0]["target_masks"].keys())
     target_masks = {
         task: torch.tensor(
-            [item["target_masks"][task] for item in batch], dtype=torch.bool
+            [item["target_masks"].get(task, False) for item in batch], dtype=torch.bool
         )
-        for task in task_names
+        for task in all_mask_keys
+    }
+    regression_targets = {
+        "quality": torch.tensor(
+            [float(item.get("quality_target", 0.0)) for item in batch], dtype=torch.float32
+        )
     }
 
     return {
@@ -199,6 +209,7 @@ def collate_keraal_mtl(batch: list[dict[str, Any]]) -> dict[str, Any]:
         "lengths": lengths,
         "target_ids": target_ids,
         "target_masks": target_masks,
+        "regression_targets": regression_targets,
         "exercise_codes": [item["exercise_code"] for item in batch],
     }
 

@@ -78,6 +78,15 @@ class KeraalSharedBackbone(nn.Module):
             }
         )
 
+        # Quality assessment regression head (predicts normalized score in [0.0, 1.0])
+        self.quality_head = nn.Sequential(
+            nn.Linear(shared_feature_size, 32),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 1),
+            nn.Sigmoid(),
+        )
+
     def forward(
         self,
         xyz: torch.Tensor,
@@ -140,7 +149,9 @@ class KeraalSharedBackbone(nn.Module):
             )
             shared_features = self.feature_dropout(shared_features)
 
-        return {
+        outputs = {
             task_name: head(shared_features)
             for task_name, head in self.heads.items()
         }
+        outputs["quality"] = self.quality_head(shared_features).squeeze(-1)
+        return outputs

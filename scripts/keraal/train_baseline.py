@@ -266,12 +266,25 @@ def main() -> int:
     print(f"Class weights: {f'Enabled (mode={args.class_weights_mode})' if args.use_class_weights else 'Disabled (uniform)'}")
     print("=" * 60)
 
+    # Resolve CSV paths if user passed legacy 'data/filename.csv' instead of 'data/keraal/filename.csv'
+    manifest_path = args.manifest
+    if not manifest_path.is_file() and (PROJECT_ROOT / "data" / "keraal" / manifest_path.name).is_file():
+        manifest_path = PROJECT_ROOT / "data" / "keraal" / manifest_path.name
+
+    targets_path = args.targets
+    if not targets_path.is_file() and (PROJECT_ROOT / "data" / "keraal" / targets_path.name).is_file():
+        targets_path = PROJECT_ROOT / "data" / "keraal" / targets_path.name
+
+    splits_path = args.splits
+    if not splits_path.is_file() and (PROJECT_ROOT / "data" / "keraal" / splits_path.name).is_file():
+        splits_path = PROJECT_ROOT / "data" / "keraal" / splits_path.name
+
     try:
         loaders = build_keraal_dataloaders(
             keraal_root=args.keraal_root,
-            manifest_path=args.manifest,
-            targets_path=args.targets,
-            split_path=args.splits,
+            manifest_path=manifest_path,
+            targets_path=targets_path,
+            split_path=splits_path,
             batch_size=args.batch_size,
             relative_to_initial_spine_base=not args.no_origin_offset,
             preload=args.preload,

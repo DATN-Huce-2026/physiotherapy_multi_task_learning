@@ -73,6 +73,59 @@ def load_kimore_joint_xyz(
     return frames
 
 
+def resolve_kimore_path(root: Path, relative_path: str | Path) -> Path:
+    """Resolve a relative path inside KiMoRe root with nested directory and casing fallback.
+
+    Handles common archive unpacking artifacts on Google Colab/Linux:
+    - Direct path: root / relative_path
+    - Nested folder: root / root.name / relative_path (e.g. /content/KIMORE/KIMORE/...)
+    - Subdirectory wrapper: root / 'kimore' / ...
+    - Case-insensitive component matching on Linux.
+    """
+    rel = Path(relative_path)
+    direct = root / rel
+    if direct.is_file():
+        return direct
+
+    # Check 1: Nested root directory (e.g., unzipping KIMORE.zip into a KIMORE folder)
+    candidate_upper = root / root.name / rel
+    if candidate_upper.is_file():
+        return candidate_upper
+
+    candidate_lower = root / root.name.lower() / rel
+    if candidate_lower.is_file():
+        return candidate_lower
+
+    # Check 2: Single wrapper subfolder inside root
+    if root.is_dir():
+        for sub in root.iterdir():
+            if sub.is_dir() and sub.name.lower() in {root.name.lower(), "kimore"}:
+                candidate_sub = sub / rel
+                if candidate_sub.is_file():
+                    return candidate_sub
+
+    # Check 3: Case-insensitive component traversal on Linux
+    if root.is_dir():
+        curr = root
+        parts = list(rel.parts)
+        for part in parts:
+            if not curr.is_dir():
+                break
+            matched_child = None
+            for child in curr.iterdir():
+                if child.name.lower() == part.lower():
+                    matched_child = child
+                    break
+            if matched_child is not None:
+                curr = matched_child
+            else:
+                break
+        if curr.is_file():
+            return curr
+
+    return direct
+
+
 def load_kimore_sample(
     manifest_row: dict[str, str],
     target_row: dict[str, str],
@@ -96,7 +149,7 @@ def load_kimore_sample(
     if not relative_kinect_path:
         raise ValueError(f"{sample_id}: missing kinect_path in manifest")
 
-    full_kinect_path = root / relative_kinect_path
+    full_kinect_path = resolve_kimore_path(root, relative_kinect_path)
     xyz = load_kimore_joint_xyz(full_kinect_path)
 
     xyz_origin_offset = None
@@ -272,13 +325,13 @@ def validate_kimore_manifest(
         if not rel_kinect:
             raise ValueError(f"{sid}: missing kinect_path in valid sample")
 
-        full_kinect = kimore_root / rel_kinect
+        full_kinect = resolve_kimore_path(kimore_root, rel_kinect)
         if not full_kinect.is_file():
             raise FileNotFoundError(f"{sid}: Kinect file not found: {full_kinect}")
 
         rel_assessment = r.get("assessment_path", "").strip()
         if rel_assessment:
-            full_assessment = kimore_root / rel_assessment
+            full_assessment = resolve_kimore_path(kimore_root, rel_assessment)
             if not full_assessment.is_file():
                 raise FileNotFoundError(f"{sid}: Assessment file not found: {full_assessment}")
 

@@ -267,10 +267,27 @@ def main() -> int:
 
     print("=" * 70)
     print("  JOINT MULTI-TASK LEARNING: KERAAL + KIMORE (SUBJECT-DISJOINT)")
+    # Auto-detect nested folder structures (common when unzipping on Colab/Linux)
+    keraal_root = args.keraal_root
+    if not (keraal_root / "group1A").is_dir() and not (keraal_root / "group3").is_dir():
+        for candidate in [keraal_root / keraal_root.name, keraal_root / "KERAAL", keraal_root / "keraal"]:
+            if (candidate / "group1A").is_dir() or (candidate / "group3").is_dir():
+                print(f"[INFO] Auto-detected nested KERAAL root: {candidate}")
+                keraal_root = candidate
+                break
+
+    kimore_root = args.kimore_root
+    if not (kimore_root / "CG").is_dir() and not (kimore_root / "cg").is_dir():
+        for candidate in [kimore_root / kimore_root.name, kimore_root / "KIMORE", kimore_root / "kimore"]:
+            if (candidate / "CG").is_dir() or (candidate / "cg").is_dir():
+                print(f"[INFO] Auto-detected nested KiMoRe root: {candidate}")
+                kimore_root = candidate
+                break
+
     print("=" * 70)
     print(f"Device:           {device}")
-    print(f"KERAAL Root:      {args.keraal_root}")
-    print(f"KiMoRe Root:      {args.kimore_root}")
+    print(f"KERAAL Root:      {keraal_root}")
+    print(f"KiMoRe Root:      {kimore_root}")
     print(f"Epochs:           {args.epochs} | Batch size: {args.batch_size} | Initial LR: {args.lr}")
     print(f"Pooling Strategy: {args.pooling.upper()} (Masked Global Average Pooling)")
     print(f"Augmentation:     {'ENABLED' if args.augment else 'DISABLED'}")
@@ -281,7 +298,7 @@ def main() -> int:
     # 1. Initialize Datasets
     print("\n--> Loading KERAAL Datasets...")
     keraal_train = KeraalMTLDataset(
-        args.keraal_root,
+        keraal_root,
         split="train",
         manifest_path=args.keraal_manifest,
         targets_path=args.keraal_targets,
@@ -289,7 +306,7 @@ def main() -> int:
         preload=args.preload,
     )
     keraal_val = KeraalMTLDataset(
-        args.keraal_root,
+        keraal_root,
         split="validation",
         manifest_path=args.keraal_manifest,
         targets_path=args.keraal_targets,
@@ -297,7 +314,7 @@ def main() -> int:
         preload=args.preload,
     )
     keraal_test = KeraalMTLDataset(
-        args.keraal_root,
+        keraal_root,
         split="test",
         manifest_path=args.keraal_manifest,
         targets_path=args.keraal_targets,
@@ -307,7 +324,7 @@ def main() -> int:
 
     print("--> Loading KiMoRe Datasets...")
     kimore_train = KimoreMTLDataset(
-        args.kimore_root,
+        kimore_root,
         split="train",
         manifest_path=args.kimore_manifest,
         targets_path=args.kimore_targets,
@@ -315,8 +332,16 @@ def main() -> int:
         preload=args.preload,
     )
     kimore_val = KimoreMTLDataset(
-        args.kimore_root,
+        kimore_root,
         split="validation",
+        manifest_path=args.kimore_manifest,
+        targets_path=args.kimore_targets,
+        split_path=args.kimore_splits,
+        preload=args.preload,
+    )
+    kimore_test = KimoreMTLDataset(
+        kimore_root,
+        split="test",
         manifest_path=args.kimore_manifest,
         targets_path=args.kimore_targets,
         split_path=args.kimore_splits,

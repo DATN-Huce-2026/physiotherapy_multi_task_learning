@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import math
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -144,4 +146,184 @@ def load_kimore_sample(
         "quality_mask": has_quality,
         "targets": targets,
         "target_masks": target_masks,
+    }
+
+
+def validate_kimore_manifest(
+    manifest_path: str | Path,
+    kimore_root: str | Path,
+    *,
+    targets_path: str | Path | None = None,
+    split_path: str | Path | None = None,
+    check_all_frames: bool = True,
+    sample_limit: int | None = None,
+) -> dict[str, Any]:
+    """Validate the KiMoRe manifest, MTL targets preview, and subject splits.
+
+    Ensures all referenced Kinect skeleton files exist, parses coordinate shapes,
+    checks normalized quality scores, verifies subject-disjoint property in splits,
+    and returns a summary dictionary without modifying source data.
+    """
+    manifest_path = Path(manifest_path)
+    kimore_root = Path(kimore_root)
+
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"KiMoRe manifest not found: {manifest_path}")
+    if not kimore_root.is_dir():
+        raise FileNotFoundError(f"KiMoRe root directory not found: {kimore_root}")
+
+    required_columns = {
+        "sample_id",
+        "dataset",
+        "cohort",
+        "group",
+        "subject_id",
+        "subject_token",
+        "exercise_code",
+        "kinect_path",
+        "kinect_frame_count",
+        "assessment_path",
+        "clinical_ts_raw",
+        "clinical_po_raw",
+        "clinical_cf_raw",
+        "quality_score_normalized",
+        "status",
+    }
+
+    with manifest_path.open("r", encoding="utf-8-sig", newline="") as source:
+        reader = csv.DictReader(source)
+        if reader.fieldnames is None:
+            raise ValueError(f"{manifest_path}: missing CSV header")
+        missing_columns = required_columns.difference(reader.fieldnames)
+        if missing_columns:
+            raise ValueError(f"{manifest_path}: missing columns {sorted(missing_columns)}")
+        rows = list(reader)
+
+    if not rows:
+        raise ValueError(f"{manifest_path}: manifest is empty")
+
+    sample_ids = [r["sample_id"] for r in rows]
+    duplicates = [sid for sid, count in Counter(sample_ids).items() if count > 1]
+    if duplicates:
+        raise ValueError(f"duplicate sample_id values in manifest: {duplicates[:5]}")
+
+    status_counts = Counter(r["status"] for r in rows)
+    cohort_counts = Counter(r["cohort"] for r in rows)
+    group_counts = Counter(r["group"] for r in rows)
+    exercise_counts = Counter(r["exercise_code"] for r in rows)
+
+    # Optional targets validation
+    targets_by_id: dict[str, dict[str, str]] = {}
+    if targets_path is not None:
+        t_path = Path(targets_path)
+        if t_path.is_file():
+            with t_path.open("r", encoding="utf-8-sig", newline="") as tf:
+                t_reader = csv.DictReader(tf)
+                for tr in t_reader:
+                    sid = tr["sample_id"]
+                    if sid in targets_by_id:
+                        raise ValueError(f"{t_path}: duplicate sample_id {sid}")
+                    targets_by_id[sid] = tr
+
+    # Optional split validation
+    split_counts: Counter[str] = Counter()
+    subject_split_map: dict[str, str] = {}
+    if split_path is not None:
+        s_path = Path(split_path)
+        if s_path.is_file():
+            with s_path.open("r", encoding="utf-8-sig", newline="") as sf:
+                s_reader = csv.DictReader(sf)
+                for sr in s_reader:
+                    sid = sr["sample_id"]
+                    sub_id = sr["subject_id"]
+                    sp = sr["split"]
+                    if sp not in {"train", "validation", "test"}:
+                        raise ValueError(f"{s_path}: unexpected split name {sp!r} for {sid}")
+                    split_counts[sp] += 1
+                    if sub_id in subject_split_map and subject_split_map[sub_id] != sp:
+                        raise ValueError(
+                            f"{s_path}: subject {sub_id} assigned to multiple splits: "
+                            f"{subject_split_map[sub_id]} vs {sp}"
+                        )
+                    subject_split_map[sub_id] = sp
+
+    valid_rows = [r for r in rows if r.get("status") == "ok"]
+    if not valid_rows:
+        raise ValueError("manifest contains 0 samples with status == 'ok'")
+
+    if targets_by_id:
+        valid_ids = {r["sample_id"] for r in valid_rows}
+        missing_in_targets = valid_ids - targets_by_id.keys()
+        if missing_in_targets:
+            raise ValueError(
+                f"{len(missing_in_targets)} valid samples missing in targets preview: "
+                f"{sorted(missing_in_targets)[:5]}"
+            )
+
+    rows_to_check = valid_rows[:sample_limit] if sample_limit else valid_rows
+
+    total_frames = 0
+    frame_counts: list[int] = []
+    quality_scores: list[float] = []
+
+    for r in rows_to_check:
+        sid = r["sample_id"]
+        rel_kinect = r.get("kinect_path", "").strip()
+        if not rel_kinect:
+            raise ValueError(f"{sid}: missing kinect_path in valid sample")
+
+        full_kinect = kimore_root / rel_kinect
+        if not full_kinect.is_file():
+            raise FileNotFoundError(f"{sid}: Kinect file not found: {full_kinect}")
+
+        rel_assessment = r.get("assessment_path", "").strip()
+        if rel_assessment:
+            full_assessment = kimore_root / rel_assessment
+            if not full_assessment.is_file():
+                raise FileNotFoundError(f"{sid}: Assessment file not found: {full_assessment}")
+
+        q_norm_str = r.get("quality_score_normalized", "").strip()
+        if q_norm_str:
+            q_val = float(q_norm_str)
+            if not (0.0 <= q_val <= 1.05):
+                raise ValueError(f"{sid}: quality_score_normalized {q_val} out of range [0, 1]")
+            quality_scores.append(q_val)
+
+        if check_all_frames:
+            frames = load_kimore_joint_xyz(full_kinect)
+            n_frames = len(frames)
+            frame_counts.append(n_frames)
+            total_frames += n_frames
+            if targets_by_id and sid in targets_by_id:
+                sample = load_kimore_sample(r, targets_by_id[sid], kimore_root)
+                if sample["sample_id"] != sid:
+                    raise ValueError(f"{sid}: loaded sample_id mismatch")
+        else:
+            manifest_fc = int(r.get("kinect_frame_count") or 0)
+            frame_counts.append(manifest_fc)
+            total_frames += manifest_fc
+
+    sub_split_counts = Counter(subject_split_map.values()) if subject_split_map else {}
+
+    return {
+        "sample_count": len(rows),
+        "valid_sample_count": len(valid_rows),
+        "checked_sample_count": len(rows_to_check),
+        "status_counts": dict(status_counts),
+        "cohort_counts": dict(cohort_counts),
+        "group_counts": dict(group_counts),
+        "exercise_counts": dict(exercise_counts),
+        "total_kinect_frames": total_frames,
+        "min_frames": min(frame_counts) if frame_counts else 0,
+        "max_frames": max(frame_counts) if frame_counts else 0,
+        "avg_frames": (total_frames / len(frame_counts)) if frame_counts else 0.0,
+        "quality_stats": {
+            "count": len(quality_scores),
+            "min": min(quality_scores) if quality_scores else None,
+            "max": max(quality_scores) if quality_scores else None,
+            "mean": (sum(quality_scores) / len(quality_scores)) if quality_scores else None,
+        },
+        "targets_checked": bool(targets_by_id),
+        "split_counts": dict(split_counts),
+        "subject_split_counts": dict(sub_split_counts),
     }

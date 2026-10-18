@@ -157,11 +157,19 @@ def main() -> None:
     print(f"Epochs:           {args.epochs} | Batch size: {args.batch_size} | LR: {args.lr}")
     print(f"Pooling Strategy: {args.pooling.upper()} (Masked Global Average Pooling)")
     print(f"Augmentation:     {'ENABLED' if args.augment else 'DISABLED'}")
+    kimore_root = args.kimore_root
+    if not (kimore_root / "CG").is_dir() and not (kimore_root / "cg").is_dir():
+        for candidate in [kimore_root / kimore_root.name, kimore_root / "KIMORE", kimore_root / "kimore"]:
+            if (candidate / "CG").is_dir() or (candidate / "cg").is_dir():
+                print(f"[INFO] Auto-detected nested KiMoRe root: {candidate}")
+                kimore_root = candidate
+                break
+
     print(f"Output Dir:       {args.output_dir}")
     print("=" * 65)
 
     loaders = build_kimore_dataloaders(
-        kimore_root=args.kimore_root,
+        kimore_root=kimore_root,
         manifest_path=args.manifest,
         targets_path=args.targets,
         split_path=args.splits,

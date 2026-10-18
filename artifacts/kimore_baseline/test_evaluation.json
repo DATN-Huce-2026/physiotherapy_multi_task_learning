@@ -1,0 +1,33 @@
+{
+  "loss": 0.1321,
+  "task_losses": {
+    "quality": 0.1321
+  },
+  "task_accuracies": {
+    "exercise": 0.0,
+    "exercise_error_class": 0.0,
+    "global_evaluation": 0.0,
+    "error_type": 0.0,
+    "severity": 0.0,
+    "body_part": 0.0
+  },
+  "task_macro_f1": {
+    "exercise": 0.0,
+    "exercise_error_class": 0.0,
+    "global_evaluation": 0.0,
+    "error_type": 0.0,
+    "severity": 0.0,
+    "body_part": 0.0
+  },
+  "task_mae": {
+    "quality": 0.1769
+  },
+  "task_rmse": {
+    "quality": 0.2076
+  },
+  "task_sample_counts": {
+    "quality": 22
+  },
+  "sample_count": 22,
+  "batch_count": 2
+}

@@ -17,8 +17,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from rehab_mtl.datasets.keraal import load_kinect_xyz  # noqa: E402
 from build_keraal_targets_preview import build_preview  # noqa: E402
@@ -202,17 +203,17 @@ def main() -> int:
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_manifest.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_manifest.csv",
     )
     parser.add_argument(
         "--targets",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_targets_preview.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_targets_preview.csv",
     )
     parser.add_argument(
         "--split",
         type=Path,
-        default=PROJECT_ROOT / "data" / "keraal_subject_split_preview.csv",
+        default=PROJECT_ROOT / "data" / "keraal" / "keraal_subject_split_preview.csv",
     )
     args = parser.parse_args()
 

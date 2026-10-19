@@ -121,6 +121,32 @@ The validator reads one clip at a time. The target preview is still provisional;
 this command checks data wiring and masks, not whether the annotation policy is
 final.
 
+## Test một lần tập bằng model đã train (Model v6)
+
+`scripts/assess_exercise.py` dùng checkpoint `artifacts/model_v6/best_model.pt`
+(train gộp KERAAL + KiMoRe, có head `quality`) để đánh giá một lần tập từ webcam
+hoặc video: **ĐÚNG/SAI**, **sai ở đâu** (loại lỗi, bộ phận, mức độ) và **điểm 0-100**.
+
+```bash
+pip install -e ".[inference]"
+python scripts/assess_exercise.py --source 0 --exercise CTK              # webcam
+python scripts/assess_exercise.py --source video.mp4 --exercise ELK --no-display
+```
+
+- Webcam: SPACE bắt đầu (đếm ngược 3 giây), SPACE kết thúc một lần tập, `q` thoát.
+  Video file: cả video là một lần tập. `--report ket_qua.json` để lưu kết quả.
+- MediaPipe Pose được chuyển sang khung xương Kinect v2 25 khớp
+  (`src/rehab_mtl/inference/mediapipe_to_kinect.py`). Các head phân loại nhận chuỗi
+  10 fps như KERAAL; head `quality` nhận chuỗi 30 fps như KiMoRe.
+- ĐÚNG/SAI lấy từ ba head có lớp "đúng" (`global_evaluation`, `exercise_error_class`,
+  `error_type`). Điểm = 50% độ đúng của các head đó + 50% head `quality`
+  (`--quality-weight` để đổi tỉ trọng). Head `quality` chỉ có nhãn ở KiMoRe nên chưa
+  phân biệt được đúng/sai trên bài KERAAL.
+- Mô tả cụ thể của Error1/2/3 sửa trong `src/rehab_mtl/inference/error_descriptions.json`.
+- Trên Windows, đặt virtualenv ở đường dẫn không dấu: MediaPipe không mở được file model
+  khi đường dẫn thư viện có ký tự như "Đ".
+- Chạy test: `python -m unittest discover -s tests -t .` (sau `pip install -e .`).
+
 ## Next implementation steps
 
 1. Review the target preview and finalize label and disagreement rules.

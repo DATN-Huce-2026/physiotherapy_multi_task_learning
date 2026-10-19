@@ -1,0 +1,28 @@
+{
+  "_ghi_chu": "Mô tả hiển thị cho từng lỗi. Repo train chỉ lưu mã Error1/2/3, chưa có định nghĩa cụ thể; hãy thay các mô tả bên dưới bằng định nghĩa lỗi của bộ KERAAL cho từng bài.",
+  "exercise_names": {
+    "CTK": "CTK - Che mặt (Cache-tête)",
+    "ELK": "ELK - Kéo giãn bên (Étirement latéral)",
+    "RTK": "RTK - Xoay thân (Rotation du tronc)"
+  },
+  "errors": {
+    "CTK": {
+      "Error1": "Lỗi loại 1 của bài CTK",
+      "Error2": "Lỗi loại 2 của bài CTK",
+      "Error3": "Lỗi loại 3 của bài CTK",
+      "Other": "Lỗi khác"
+    },
+    "ELK": {
+      "Error1": "Lỗi loại 1 của bài ELK",
+      "Error2": "Lỗi loại 2 của bài ELK",
+      "Error3": "Lỗi loại 3 của bài ELK",
+      "Other": "Lỗi khác"
+    },
+    "RTK": {
+      "Error1": "Lỗi loại 1 của bài RTK",
+      "Error2": "Lỗi loại 2 của bài RTK",
+      "Error3": "Lỗi loại 3 của bài RTK",
+      "Other": "Lỗi khác"
+    }
+  }
+}

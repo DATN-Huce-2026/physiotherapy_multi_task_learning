@@ -1,4 +1,4 @@
-"""Ghi chuỗi khung xương Kinect-25 của một lần tập từ kết quả MediaPipe Pose."""
+"""Ghi chuỗi khung xương của một lần tập."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from rehab_mtl.inference.mediapipe_to_kinect import (
 
 
 def world_landmarks_array(results) -> tuple[np.ndarray, np.ndarray] | None:
-    """Kết quả MediaPipe -> (tọa độ [33, 3], visibility [33]); None nếu không thấy người."""
+    """Trả (tọa độ [33, 3], visibility [33]), hoặc None nếu không thấy người."""
     if results is None or not results.pose_world_landmarks:
         return None
     landmarks = results.pose_world_landmarks.landmark
@@ -24,11 +24,7 @@ def world_landmarks_array(results) -> tuple[np.ndarray, np.ndarray] | None:
 
 
 class SkeletonRecorder:
-    """Gom từng frame thành chuỗi Kinect-25 có mốc thời gian.
-
-    Frame không thấy người hoặc thiếu khớp bắt buộc (vai, khuỷu, cổ tay, hông)
-    được lưu là NaN rồi lấp bằng nội suy khi xuất chuỗi.
-    """
+    """Frame thiếu khớp được lưu NaN, lấp bằng nội suy khi xuất chuỗi."""
 
     def __init__(
         self,
@@ -54,7 +50,7 @@ class SkeletonRecorder:
         self.visible_frames = 0
 
     def add(self, timestamp: float, results) -> bool:
-        """Thêm một frame; trả True nếu frame đủ khớp để dùng."""
+        """Trả True nếu frame đủ khớp để dùng."""
         data = world_landmarks_array(results)
         frame = np.full((25, 3), np.nan, dtype=np.float32)
         usable = False
@@ -69,7 +65,6 @@ class SkeletonRecorder:
         return usable
 
     def sequence(self, fps: float = KERAAL_FPS) -> np.ndarray:
-        """Chuỗi [T, 25, 3] lấy mẫu đều theo ``fps``."""
         if not self.frames:
             raise ValueError("Chưa ghi được frame nào")
         return resample_sequence(

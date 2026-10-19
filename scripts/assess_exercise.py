@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""Test một lần tập vật lý trị liệu bằng model đã train (mặc định Model v6).
+"""Test một lần tập vật lý trị liệu bằng model đã train (Model v6).
 
-Camera/video -> MediaPipe Pose -> khung xương Kinect 25 khớp -> model
--> ĐÚNG/SAI, sai ở đâu (loại lỗi, bộ phận, mức độ) và điểm 0-100.
-
-Video file: cả video là một lần tập.
-Webcam: SPACE bắt đầu (đếm ngược 3 giây), SPACE kết thúc một lần tập, 'q' thoát.
+Webcam: SPACE bắt đầu/kết thúc một lần tập, 'q' thoát. Video: cả video là một lần tập.
 
     python scripts/assess_exercise.py --source 0 --exercise CTK
     python scripts/assess_exercise.py --source video.mp4 --exercise ELK --no-display
@@ -98,7 +94,6 @@ def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, object]:
         attempt["skipped"] = f"Lần tập quá ngắn (< {MIN_CLIP_SECONDS:g} giây)"
         return attempt
     try:
-        # Head phân loại học ở 10 fps (KERAAL), head quality ở 30 fps (KiMoRe).
         keraal_sequence = recorder.sequence(KERAAL_FPS)
         kimore_sequence = recorder.sequence(KIMORE_FPS)
     except ValueError as error:
@@ -148,7 +143,7 @@ def print_attempt(number: int, attempt: dict[str, object]) -> None:
 
 
 def overlay_lines(state, recorder, last_attempt, now, countdown_end, is_webcam):
-    """Các dòng chữ không dấu (OpenCV không vẽ được tiếng Việt có dấu)."""
+    # OpenCV không vẽ được chữ có dấu nên dùng tiếng Anh
     lines: list[tuple[str, tuple[int, int, int]]] = []
     if state == "recording":
         lines.append((f"RECORDING {recorder.duration:4.1f}s", (0, 0, 255)))
@@ -248,7 +243,7 @@ def run(args: argparse.Namespace) -> int:
                 break
             now = time.monotonic() if is_webcam else frame_index / fps
             frame_index += 1
-            # Chạy MediaPipe trên ảnh gốc (không lật) để trái/phải đúng giải phẫu.
+            # Dùng ảnh chưa lật để trái/phải đúng
             results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
             if state == "countdown" and now >= countdown_end:
@@ -270,7 +265,7 @@ def run(args: argparse.Namespace) -> int:
                     frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
                 )
             if is_webcam:
-                frame = cv2.flip(frame, 1)  # chỉ lật khi hiển thị cho giống gương
+                frame = cv2.flip(frame, 1)  # lật như gương khi hiển thị
             draw_panel(
                 frame,
                 overlay_lines(state, recorder, last_attempt, now, countdown_end, is_webcam),

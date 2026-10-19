@@ -1,23 +1,7 @@
-"""Diễn giải đầu ra của model: đúng/sai, sai ở đâu, điểm 0-100.
+"""Đổi đầu ra của model thành kết quả: đúng/sai, sai ở đâu, điểm 0-100.
 
-**Đúng/Sai** lấy từ các head phân loại học trên nhãn đúng/sai của KERAAL. Ba head
-``global_evaluation``, ``exercise_error_class`` và ``error_type`` đều có lớp
-"đúng" (Correct/none); với mỗi head, độ đúng là
-
-    P(đúng) / (P(đúng) + P(lớp lỗi mạnh nhất))
-
-tức so lớp "đúng" với đối thủ mạnh nhất (không dùng thẳng P(đúng) vì class
-weight lúc train đẩy xác suất các lớp hiếm lên). ``correctness`` = 100 × trung
-bình ba head; lần tập là ĐÚNG khi ``correctness >= pass_score``.
-
-**Điểm** = ``(1 - quality_weight) × correctness + quality_weight × quality``,
-trong đó ``quality`` = 100 × đầu ra head ``quality`` (điểm lâm sàng TS/50 học từ
-KiMoRe). Head ``quality`` chưa có nhãn trên bài KERAAL nên chỉ chiếm một phần
-điểm (mặc định 50%). Checkpoint không có head ``quality`` thì điểm = correctness.
-
-Khi SAI: loại lỗi từ trung bình xác suất Error1/2/3 của ``exercise_error_class``
-và ``error_type`` (``Other`` chỉ có ở ``error_type``); bộ phận và mức độ từ head
-``body_part`` và ``severity``.
+- Đúng/sai: trung bình P(đúng) / (P(đúng) + P(lỗi mạnh nhất)) của 3 head có lớp đúng.
+- Điểm: (1 - quality_weight) × độ đúng + quality_weight × quality.
 """
 
 from __future__ import annotations
@@ -29,7 +13,7 @@ import numpy as np
 
 from rehab_mtl.datasets.label_maps import TASK_MAPPINGS
 
-# task -> tên lớp theo đúng thứ tự id lúc train
+# Tên lớp theo thứ tự id lúc train
 TASK_LABELS: dict[str, tuple[str, ...]] = {
     task: tuple(sorted(mapping, key=mapping.get)) for task, mapping in TASK_MAPPINGS.items()
 }
@@ -81,7 +65,6 @@ def assess(
     quality_weight: float = DEFAULT_QUALITY_WEIGHT,
     descriptions: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """``probabilities``: task -> softmax theo thứ tự ``TASK_LABELS``; ``quality`` trong [0, 1]."""
     if not 0 < pass_score < 100:
         raise ValueError("pass_score phải nằm trong (0, 100)")
     if not 0 <= quality_weight <= 1:
@@ -89,7 +72,7 @@ def assess(
     descriptions = descriptions or load_descriptions()
     probs = {task: np.asarray(probabilities[task], dtype=float) for task in TASK_LABELS}
 
-    # Lớp id 0 của ba head này đều là "đúng" (Correct/none).
+    # Lớp 0 của 3 head này là "đúng"
     head_correctness = [
         probs[task][0] / max(probs[task][0] + probs[task][1:].max(), 1e-12)
         for task in CORRECT_HEADS
@@ -134,7 +117,7 @@ def assess(
     if passed:
         return result
 
-    # Gộp xác suất từng mã lỗi từ hai head có cùng mã.
+    # Gộp xác suất mã lỗi từ 2 head
     eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))
     err = dict(zip(TASK_LABELS["error_type"], probs["error_type"]))
     error_probabilities = {
@@ -142,7 +125,6 @@ def assess(
         for code in ERROR_CODES
     }
     error_code = max(error_probabilities, key=error_probabilities.get)
-    # Lý do sai: lớp cao nhất trong các lớp khác "Correct".
     reason = TASK_LABELS["global_evaluation"][1 + int(np.argmax(probs["global_evaluation"][1:]))]
     body_part, body_conf = _top("body_part", probs["body_part"])
     severity, severity_conf = _top("severity", probs["severity"])

@@ -16,7 +16,7 @@ from rehab_mtl.inference.recorder import SkeletonRecorder
 
 
 def standing_pose():
-    """Người đứng đối diện camera, tọa độ MediaPipe world (y hướng xuống)."""
+    """Người đứng đối diện camera (MediaPipe: y hướng xuống)."""
     landmarks = np.zeros((33, 3), dtype=np.float32)
     landmarks[LEFT_HIP] = (0.1, 0.0, 0.0)  # bên trái người = +x MediaPipe
     landmarks[RIGHT_HIP] = (-0.1, 0.0, 0.0)
@@ -40,10 +40,10 @@ class TestMediapipeToKinect(unittest.TestCase):
     def test_doi_truc_sang_kinect(self):
         kinect = mediapipe_world_to_kinect(standing_pose(), pitch_deg=0)
 
-        # Kinect: vai trái có x âm (bên phải người là +x), vai cao hơn hông (y dương)
+        # Kinect: x sang phải người tập, y hướng lên
         self.assertLess(kinect[4, 0], kinect[8, 0])
         self.assertGreater(kinect[4, 1], kinect[12, 1])
-        # Tay đưa về phía camera -> z giảm (Kinect +z hướng ra xa camera)
+        # Tay đưa về phía camera -> z giảm
         self.assertLess(kinect[6, 2], kinect[4, 2])
         self.assertTrue(np.isfinite(kinect).all())
 
@@ -64,13 +64,13 @@ class TestMediapipeToKinect(unittest.TestCase):
 
 class TestResample(unittest.TestCase):
     def test_lay_mau_10fps_va_lap_frame_mat(self):
-        timestamps = np.arange(7) / 30.0  # 30 fps, 0.2 giây
+        timestamps = np.arange(7) / 30.0
         frames = np.stack([np.full((25, 3), t, dtype=np.float32) for t in range(7)])
         frames[3] = np.nan  # một frame không thấy người
 
         result = resample_sequence(timestamps, frames, fps=10.0)
 
-        self.assertEqual(result.shape, (3, 25, 3))  # t = 0, 0.1, 0.2
+        self.assertEqual(result.shape, (3, 25, 3))
         np.testing.assert_allclose(result[:, 0, 0], [0, 3, 6], atol=1e-4)
 
     def test_qua_it_frame_thi_bao_loi(self):

@@ -1,39 +1,13 @@
-"""Chuyển 33 world landmarks MediaPipe sang khung xương 25 khớp Kinect v2.
-
-KERAAL và KiMoRe đều dùng Kinect v2 (25 khớp, cùng thứ tự ``JOINT_NAMES``), nên
-khung xương sau khi chuyển dùng chung cho cả model train gộp hai bộ dữ liệu.
-
-Hệ trục (đo trên file Kinect KERAAL): Kinect +x = bên phải người tập, +y hướng
-lên, +z hướng ra xa camera. MediaPipe world: +x = bên trái người tập (bên phải
-ảnh), +y hướng xuống, +z hướng ra xa camera. Vì vậy đổi dấu x và y (tương đương
-xoay 180° quanh trục z, vẫn giữ hệ tay phải).
-
-Các khớp Kinect không có trong MediaPipe được nội suy theo tỉ lệ đo trung bình
-trên dữ liệu Kinect KERAAL (ổn định giữa các người tập):
-
-- SpineMid  = SpineBase + 0.57 × (SpineShoulder − SpineBase)
-- Neck      = SpineShoulder + 0.31 × (Head − SpineShoulder)
-- SpineBase lùi ra sau tâm hai hông ~3 cm; SpineShoulder cao hơn tâm hai vai
-  ~1.5 cm và lùi ~1 cm.
-
-Camera Kinect của KERAAL nhìn lệch nhẹ so với camera quay video: trên các clip
-group2/group3, xoay cả khung xương MediaPipe quanh trục x thêm ``+8°``
-(``DEFAULT_CAMERA_PITCH_DEG``) cho sai lệch hình dáng nhỏ nhất so với Kinect thật.
-
-Model chỉ thấy tọa độ sau khi trừ SpineBase của frame đầu, nên gốc tọa độ khác
-nhau giữa Kinect (camera) và MediaPipe (tâm hông) không ảnh hưởng hình dáng tư
-thế. Riêng chuyển động tịnh tiến của cả người thì MediaPipe world không có.
-"""
+"""Chuyển 33 điểm MediaPipe sang khung xương 25 khớp Kinect v2 (dạng model đã học)."""
 
 from __future__ import annotations
 
 import numpy as np
 
-KERAAL_FPS = 10.0  # file Kinect KERAAL có số frame bằng video 10 fps
-KIMORE_FPS = 30.0  # KiMoRe giữ nguyên tốc độ Kinect v2, không lấy mẫu lại khi train
-DEFAULT_CAMERA_PITCH_DEG = 8.0
+KERAAL_FPS = 10.0
+KIMORE_FPS = 30.0
+DEFAULT_CAMERA_PITCH_DEG = 8.0  # bù góc lệch giữa webcam và Kinect
 
-# Chỉ số MediaPipe Pose
 NOSE = 0
 LEFT_EAR, RIGHT_EAR = 7, 8
 LEFT_SHOULDER, RIGHT_SHOULDER = 11, 12
@@ -47,7 +21,7 @@ LEFT_KNEE, RIGHT_KNEE = 25, 26
 LEFT_ANKLE, RIGHT_ANKLE = 27, 28
 LEFT_FOOT_INDEX, RIGHT_FOOT_INDEX = 31, 32
 
-# Kinect: khớp lấy thẳng từ một landmark MediaPipe
+# Khớp Kinect -> landmark MediaPipe tương ứng
 DIRECT_JOINTS = {
     4: LEFT_SHOULDER,
     5: LEFT_ELBOW,
@@ -68,11 +42,12 @@ DIRECT_JOINTS = {
     23: RIGHT_INDEX,  # HandTipRight
     24: RIGHT_THUMB,
 }
+# Tỉ lệ đo từ dữ liệu Kinect thật, dùng để nội suy khớp MediaPipe không có
 SPINE_MID_RATIO = 0.57
 NECK_RATIO = 0.31
 SPINE_BASE_OFFSET = np.array([0.0, 0.0, 0.03], dtype=np.float32)
 SPINE_SHOULDER_OFFSET = np.array([0.0, 0.015, 0.01], dtype=np.float32)
-# Landmark tối thiểu phải nhìn thấy để frame được dùng
+# Frame chỉ được dùng khi thấy đủ các landmark này
 REQUIRED_LANDMARKS = (
     LEFT_SHOULDER,
     RIGHT_SHOULDER,
@@ -97,11 +72,11 @@ def mediapipe_world_to_kinect(
     landmarks: np.ndarray,
     pitch_deg: float = DEFAULT_CAMERA_PITCH_DEG,
 ) -> np.ndarray:
-    """``landmarks``: [33, 3] world landmarks MediaPipe -> [25, 3] trục Kinect."""
+    """[33, 3] MediaPipe world landmarks -> [25, 3] khớp Kinect."""
     mp = np.asarray(landmarks, dtype=np.float32)
     if mp.shape != (33, 3):
         raise ValueError("landmarks phải có shape [33, 3]")
-    # Đổi sang trục Kinect trước để các offset bên dưới dùng đúng chiều.
+    # MediaPipe: x sang trái, y xuống; Kinect: x sang phải, y lên
     mp = mp * np.array([-1.0, -1.0, 1.0], dtype=np.float32)
 
     kinect = np.zeros((25, 3), dtype=np.float32)
@@ -130,11 +105,7 @@ def resample_sequence(
     frames: np.ndarray,
     fps: float = KERAAL_FPS,
 ) -> np.ndarray:
-    """Nội suy tuyến tính chuỗi [T, 25, 3] (có thể có frame NaN) về ``fps`` đều.
-
-    Frame NaN (không thấy người) được bỏ qua và lấp bằng nội suy giữa các frame
-    hợp lệ hai bên.
-    """
+    """Lấy mẫu lại chuỗi [T, 25, 3] về ``fps``; frame NaN được lấp bằng nội suy."""
     timestamps = np.asarray(timestamps, dtype=np.float64)
     frames = np.asarray(frames, dtype=np.float32)
     if len(timestamps) != len(frames):

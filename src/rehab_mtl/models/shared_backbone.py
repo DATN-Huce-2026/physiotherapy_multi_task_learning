@@ -45,7 +45,7 @@ class KeraalSharedBackbone(nn.Module):
         coordinates_per_joint: int | None = None,
         frame_embedding_size: int = 64,
         recurrent_hidden_size: int = 64,
-        dropout: float = 0.4,
+        dropout: float = 0.5,  # [CHỈNH SỬA]: Tăng dropout từ 0.4 lên 0.5 để giảm thiểu Overfitting
         pooling: str = "mean",  # "mean" (Masked Global Average Pooling) or "last"
     ) -> None:
         super().__init__()

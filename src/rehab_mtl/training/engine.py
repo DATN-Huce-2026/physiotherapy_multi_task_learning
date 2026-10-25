@@ -206,6 +206,7 @@ def fit(
     checkpoint_dir: str | Path | None = None,
     best_model_filename: str = "best_model.pt",
     augment: bool = True,
+    early_stopping_patience: int | None = None,  # [BỔ SUNG MỚI]: Dừng huấn luyện sớm nếu val loss không cải thiện sau N epochs
     verbose: bool = True,
 ) -> list[dict[str, Any]]:
     """Run the epoch loop and return train/validation metrics for each epoch.
@@ -231,6 +232,7 @@ def fit(
 
     best_val_loss = float("inf")
     best_epoch = -1
+    epochs_no_improve = 0  # [BỔ SUNG MỚI]: Đếm số epoch liên tiếp không cải thiện val loss
 
     for epoch_index in range(1, epochs + 1):
         current_lr = optimizer.param_groups[0]["lr"]
@@ -262,8 +264,11 @@ def fit(
         if is_best:
             best_val_loss = val_loss
             best_epoch = epoch_index
+            epochs_no_improve = 0  # Reset bộ đếm khi tìm thấy checkpoint tốt hơn
             if save_dir is not None:
                 torch.save(model.state_dict(), save_dir / best_model_filename)
+        else:
+            epochs_no_improve += 1
 
         lr_before_step = current_lr
         if scheduler is not None:
@@ -298,6 +303,16 @@ def fit(
                 "best_epoch": best_epoch,
             }
         )
+
+        # [BỔ SUNG MỚI]: Kích hoạt Early Stopping nếu số epoch không cải thiện vượt ngưỡng
+        if early_stopping_patience is not None and epochs_no_improve >= early_stopping_patience:
+            if verbose:
+                print(
+                    f"\n[EARLY STOPPING]: Dừng huấn luyện sớm tại Epoch {epoch_index} "
+                    f"vì Val Loss không cải thiện sau {early_stopping_patience} epochs liên tiếp "
+                    f"(Best Val Loss: {best_val_loss:.4f} tại Epoch {best_epoch})."
+                )
+            break
 
     if verbose and save_dir is not None and best_epoch != -1:
         print(f"\n[OK] Best model checkpoint saved at Epoch {best_epoch} with Val Loss: {best_val_loss:.4f} to: {save_dir / best_model_filename}")

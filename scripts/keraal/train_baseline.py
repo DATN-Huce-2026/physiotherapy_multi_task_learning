@@ -21,12 +21,12 @@ from rehab_mtl.datasets import TASK_MAPPINGS, build_keraal_dataloaders  # noqa: 
 from rehab_mtl.models.shared_backbone import KeraalSharedBackbone  # noqa: E402
 from rehab_mtl.training.engine import evaluate, fit  # noqa: E402
 
-# Trọng số mặc định cho từng head (bạn có thể trực tiếp sửa các số này ở đây):
+# Trọng số mặc định cho từng head (tăng trọng số phát hiện lỗi và giảm task dễ):
 DEFAULT_TASK_WEIGHTS: dict[str, float] = {
-    "exercise": 1.0,
-    "exercise_error_class": 1.2,
-    "global_evaluation": 1.5,
-    "error_type": 1.2,
+    "exercise": 0.8,
+    "exercise_error_class": 1.8,
+    "global_evaluation": 1.2,
+    "error_type": 1.8,
     "severity": 0.8,
     "body_part": 0.5,
 }
@@ -144,8 +144,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=20,
-        help="Number of training epochs",
+        default=45,
+        help="Number of training epochs (default: 45)",
     )
     parser.add_argument(
         "--batch-size",
@@ -162,8 +162,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--weight-decay",
         type=float,
-        default=1e-4,
-        help="Weight decay (L2 penalty) for AdamW optimizer. Default: 1e-4",
+        default=5e-4,
+        help="Weight decay (L2 penalty) for AdamW optimizer. Default: 5e-4",
+    )
+    parser.add_argument(
+        "--early-stopping",
+        type=int,
+        default=10,
+        help="Early stopping patience in epochs (default: 10, set 0 to disable)",
     )
     parser.add_argument(
         "--lr-scheduler",
@@ -385,6 +391,7 @@ def main() -> int:
         checkpoint_dir=args.output_dir,
         best_model_filename="best_model.pt",
         augment=args.augment,
+        early_stopping_patience=args.early_stopping if args.early_stopping > 0 else None,
         verbose=True,
     )
 

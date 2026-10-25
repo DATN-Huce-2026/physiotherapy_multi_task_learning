@@ -2,44 +2,62 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+# ==============================================================================
+# 1. Exercise Classification (Phân loại bài tập phục hồi chức năng)
+# ==============================================================================
 EXERCISE_TO_ID = {
-    "CTK": 0,
-    "ELK": 1,
-    "RTK": 2,
+    "CTK": 0,  # Clear The Desk / Lateral trunk tilt (Nghiêng thân mình sang bên)
+    "ELK": 1,  # Elevate the arms / Bilateral arm lifting (Vươn/nâng hai cánh tay)
+    "RTK": 2,  # Rotate trunk / Trunk rotation (Xoay thân mình)
 }
 
+# ==============================================================================
+# 2. Global Evaluation (Đánh giá tổng quát mức độ hoàn thành động tác)
+# ==============================================================================
 GLOBAL_EVALUATION_TO_ID = {
-    "Correct": 0,
-    "Incorrect": 1,
-    "Incomplete": 2,
-    "Motionless": 3,
+    "Correct": 0,     # Thực hiện đúng bài tập
+    "Incorrect": 1,   # Thực hiện sai kỹ thuật (mắc lỗi động tác)
+    "Incomplete": 2,  # Chưa hoàn thành trọn vẹn động tác (bỏ dở giữa chừng)
+    "Motionless": 3,  # Bất động / không thực hiện động tác
 }
 
+# ==============================================================================
+# 3. Error Type Detection (Phân loại loại lỗi cụ thể mắc phải)
+# ==============================================================================
 ERROR_TYPE_TO_ID = {
-    "none": 0,
-    "Error1": 1,
-    "Error2": 2,
-    "Error3": 3,
-    "Other": 4,
+    "none": 0,    # Không có lỗi (động tác chuẩn)
+    "Error1": 1,  # Lỗi loại 1
+    "Error2": 2,  # Lỗi loại 2
+    "Error3": 3,  # Lỗi loại 3
+    "Other": 4,   # Lỗi khác (ngoài 3 lỗi chính được định nghĩa cho bài tập)
 }
 
+# ==============================================================================
+# 4. Error Severity (Mức độ nghiêm trọng của lỗi)
+# ==============================================================================
 SEVERITY_TO_ID = {
-    "SmallError": 0,
-    "LargeError": 1,
+    "SmallError": 0,  # Lỗi nhỏ / nhẹ
+    "LargeError": 1,  # Lỗi lớn / nghiêm trọng
 }
 
+# ==============================================================================
+# 5. Affected Body Part (Bộ phận cơ thể mắc lỗi)
+# ==============================================================================
 BODY_PART_TO_ID = {
-    "Spine": 0,
-    "BothArms": 1,
-    "RightArm": 2,
-    "LeftArm": 3,
+    "Spine": 0,     # Cột sống / thân người / lưng
+    "BothArms": 1,  # Cả hai cánh tay
+    "RightArm": 2,  # Cánh tay phải
+    "LeftArm": 3,   # Cánh tay trái
 }
 
+# ==============================================================================
+# 6. KERAAL 4-Class Exercise Error (Phân loại 4 lớp chuẩn benchmark KERAAL)
+# ==============================================================================
 EXERCISE_ERROR_CLASS_TO_ID = {
-    "Correct": 0,
-    "Error1": 1,
-    "Error2": 2,
-    "Error3": 3,
+    "Correct": 0,  # Động tác chuẩn / đúng hoàn toàn
+    "Error1": 1,   # Lỗi loại 1
+    "Error2": 2,   # Lỗi loại 2
+    "Error3": 3,   # Lỗi loại 3
 }
 
 # The KERAAL four-class task aligns with the E1/E2/E3 filename prefixes.
@@ -66,13 +84,16 @@ GROUP3_LABEL_CODE_TO_ERROR_TYPE = {
     for code, error_type in GROUP3_LABEL_CODE_TO_EXERCISE_ERROR_CLASS.items()
 }
 
+# ==============================================================================
+# Registry quản lý ánh xạ cho tất cả các task trong Multi-Task Learning
+# ==============================================================================
 TASK_MAPPINGS = {
-    "exercise": EXERCISE_TO_ID,
-    "exercise_error_class": EXERCISE_ERROR_CLASS_TO_ID,
-    "global_evaluation": GLOBAL_EVALUATION_TO_ID,
-    "error_type": ERROR_TYPE_TO_ID,
-    "severity": SEVERITY_TO_ID,
-    "body_part": BODY_PART_TO_ID,
+    "exercise": EXERCISE_TO_ID,                          # Phân loại bài tập (3 lớp)
+    "exercise_error_class": EXERCISE_ERROR_CLASS_TO_ID,  # Phân loại 4 lớp benchmark KERAAL (Correct, E1, E2, E3)
+    "global_evaluation": GLOBAL_EVALUATION_TO_ID,        # Đánh giá tổng quát (Correct, Incorrect, Incomplete, Motionless)
+    "error_type": ERROR_TYPE_TO_ID,                      # Loại lỗi chi tiết (none, Error1-3, Other)
+    "severity": SEVERITY_TO_ID,                          # Mức độ nghiêm trọng của lỗi (SmallError, LargeError)
+    "body_part": BODY_PART_TO_ID,                        # Vị trí bộ phận cơ thể mắc lỗi (Spine, BothArms, RightArm, LeftArm)
 }
 
 

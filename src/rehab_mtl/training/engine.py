@@ -57,13 +57,28 @@ def augment_skeleton_batch(
 ) -> torch.Tensor:
     """Tăng cường dữ liệu skeleton ngẫu nhiên trực tiếp trên batch (GPU/CPU).
 
-    1. Xoay ngẫu nhiên quanh trục đứng Y trong khoảng [-max_rotation, +max_rotation] độ.
-    2. Co giãn ngẫu nhiên tỷ lệ cơ thể (scale) trong khoảng [min_scale, max_scale].
-    3. Thêm nhiễu rung tọa độ Gaussian jitter (~8mm) mô phỏng sai số đo của camera Kinect.
-    Các frame đệm (zero padding) được giữ nguyên giá trị 0.
+    [CHỈNH SỬA / BỔ SUNG]:
+    - Nếu xyz có shape [batch, time, 12] (12 góc khớp): Tăng cường bằng nhiễu góc ngẫu nhiên (angle jitter).
+    - Nếu xyz có shape [batch, time, joints, 3] (tọa độ không gian 3D): Thực hiện xoay trục Y, scale và jitter 3D.
     """
-    batch_size, time_steps, joints, _ = xyz.shape
     device = xyz.device
+
+    # [BỔ SUNG]: Xử lý khi đầu vào là chuỗi 12 góc khớp [batch, time, 12]
+    if xyz.ndim == 3:
+        batch_size, time_steps, feat_dim = xyz.shape
+        out = xyz.clone()
+        if jitter_std > 0:
+            # Nhiễu góc ngẫu nhiên nhỏ (~0.015 rad ~ 0.8 độ) mô phỏng sai số đo góc
+            noise = torch.randn_like(out) * (jitter_std * 2.0)
+            time_indices = torch.arange(time_steps, device=device).unsqueeze(0)
+            time_mask = (time_indices < lengths.unsqueeze(1)).unsqueeze(-1)
+            out = out + noise * time_mask
+            # Giữ góc trong khoảng hợp lệ [0, pi]
+            out = torch.clamp(out, min=0.0, max=float(math.pi))
+        return out
+
+    # [GIỮ NGUYÊN]: Xử lý cho chuỗi tọa độ 3D cũ [batch, time, joints, 3]
+    batch_size, time_steps, joints, _ = xyz.shape
 
     # 1. Co giãn ngẫu nhiên (Scaling)
     scale = torch.empty(batch_size, 1, 1, 1, device=device).uniform_(scale_range[0], scale_range[1])

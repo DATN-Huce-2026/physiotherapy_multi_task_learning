@@ -63,8 +63,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=70,
-        help="Number of training epochs (default: 70)",
+        default=45,
+        help="Number of training epochs (default: 45)",
     )
     parser.add_argument(
         "--batch-size",
@@ -81,8 +81,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--weight-decay",
         type=float,
-        default=1e-4,
-        help="AdamW weight decay (default: 1e-4)",
+        default=5e-4,
+        help="AdamW weight decay (default: 5e-4)",
+    )
+    parser.add_argument(
+        "--early-stopping",
+        type=int,
+        default=10,
+        help="Early stopping patience in epochs (default: 10, set 0 to disable)",
     )
     parser.add_argument(
         "--lr-scheduler",
@@ -256,6 +262,7 @@ def main() -> None:
         scheduler=scheduler,
         checkpoint_dir=args.output_dir,
         augment=args.augment,
+        early_stopping_patience=args.early_stopping if args.early_stopping > 0 else None,
         verbose=True,
     )
 

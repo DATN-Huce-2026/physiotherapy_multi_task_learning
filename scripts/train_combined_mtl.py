@@ -32,14 +32,15 @@ if sys.platform == "win32" and isinstance(sys.stdout, io.TextIOWrapper):
         pass
 
 # Default weights balancing classification tasks (KERAAL) and quality regression (KiMoRe)
+# [CHỈNH SỬA / BỔ SUNG]: Tăng trọng số các task phát hiện lỗi và giảm nhẹ các task dễ (đã >94%)
 DEFAULT_TASK_WEIGHTS: dict[str, float] = {
-    "exercise": 1.0,
-    "exercise_error_class": 1.2,
-    "global_evaluation": 1.5,
-    "error_type": 1.2,
-    "severity": 0.8,
-    "body_part": 0.5,
-    "quality": 1.0,
+    "exercise": 0.8,              # Giảm nhẹ vì task phân loại bài tập đã đạt 93.9%
+    "exercise_error_class": 1.8,  # Tăng trọng số tập trung vào 4 lớp lỗi bài tập
+    "global_evaluation": 1.2,     # Đánh giá tổng quát
+    "error_type": 1.8,            # Tăng trọng số phân loại loại lỗi cụ thể
+    "severity": 0.8,              # Mức độ nghiêm trọng
+    "body_part": 0.5,             # Bộ phận cơ thể (đã đạt 96.8%)
+    "quality": 1.0,               # Hồi quy chất lượng vận động KiMoRe
 }
 
 DEFAULT_CLASS_WEIGHTS: dict[str, torch.Tensor] = {
@@ -172,8 +173,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=70,
-        help="Number of epochs (default: 70)",
+        default=45,  # [CHỈNH SỬA]: Rút ngắn từ 70 về 45 vì mô hình đạt đỉnh sớm quanh Epoch 20-25
+        help="Number of epochs (default: 45)",
     )
     parser.add_argument(
         "--batch-size",
@@ -190,8 +191,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--weight-decay",
         type=float,
-        default=1e-4,
-        help="AdamW weight decay (default: 1e-4)",
+        default=5e-4,  # [CHỈNH SỬA]: Tăng từ 1e-4 lên 5e-4 để tăng Regularization, giảm Overfitting
+        help="AdamW weight decay (default: 5e-4)",
+    )
+    parser.add_argument(
+        "--early-stopping",
+        type=int,
+        default=10,  # [BỔ SUNG MỚI]: Tự động dừng nếu val loss không cải thiện sau 10 epochs
+        help="Early stopping patience in epochs (default: 10, set 0 to disable)",
     )
     parser.add_argument(
         "--lr-scheduler",
@@ -461,6 +468,7 @@ def main() -> int:
         scheduler=scheduler,
         checkpoint_dir=args.output_dir,
         augment=args.augment,
+        early_stopping_patience=args.early_stopping if args.early_stopping > 0 else None,
         verbose=True,
     )
 

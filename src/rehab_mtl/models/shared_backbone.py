@@ -40,21 +40,30 @@ class KeraalSharedBackbone(nn.Module):
     def __init__(
         self,
         *,
-        num_joints: int = 25,
-        coordinates_per_joint: int = 3,
+        input_dim: int = 12,  # [BỔ SUNG MỚI]: Tham số input_dim=12 cho 12 góc lâm sàng (thay thế 75 tọa độ)
+        num_joints: int | None = None,  # [TÙY CHỌN]: Giữ tương thích ngược với mô hình cũ
+        coordinates_per_joint: int | None = None,
         frame_embedding_size: int = 64,
         recurrent_hidden_size: int = 64,
         dropout: float = 0.4,
         pooling: str = "mean",  # "mean" (Masked Global Average Pooling) or "last"
     ) -> None:
         super().__init__()
-        self.num_joints = num_joints
-        self.coordinates_per_joint = coordinates_per_joint
+        # [CHỈNH SỬA]: Xác định kích thước frame đầu vào: 12 (góc) hoặc 25*3=75 (tọa độ cũ)
+        if num_joints is not None and coordinates_per_joint is not None:
+            self.input_dim = num_joints * coordinates_per_joint
+            self.num_joints = num_joints
+            self.coordinates_per_joint = coordinates_per_joint
+        else:
+            self.input_dim = input_dim
+            self.num_joints = None
+            self.coordinates_per_joint = None
+
         self.pooling = pooling
 
-        frame_input_size = num_joints * coordinates_per_joint
+        # [CHỈNH SỬA]: Lớp Linear đầu vào nhận self.input_dim (12 hoặc 75)
         self.frame_encoder = nn.Sequential(
-            nn.Linear(frame_input_size, frame_embedding_size),
+            nn.Linear(self.input_dim, frame_embedding_size),
             nn.LayerNorm(frame_embedding_size),
             nn.GELU(),
             nn.Dropout(dropout),
@@ -92,17 +101,33 @@ class KeraalSharedBackbone(nn.Module):
         xyz: torch.Tensor,
         lengths: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        if xyz.ndim != 4:
+        # [CHỈNH SỬA]: Hỗ trợ cả tensor 3D [batch, time, 12] (12 góc) lẫn 4D [batch, time, 25, 3] (tọa độ cũ)
+        if xyz.ndim == 3:
+            # Dạng mới: [batch_size, time_steps, input_dim] (ví dụ [batch, 90, 12])
+            batch_size, padded_time, feat_dim = xyz.shape
+            if feat_dim != self.input_dim:
+                raise ValueError(
+                    f"Frame feature dim is {feat_dim}, expected input_dim={self.input_dim}"
+                )
+            frame_features = xyz
+        elif xyz.ndim == 4:
+            # Dạng cũ: [batch_size, time_steps, joints, coordinates]
+            batch_size, padded_time, joint_count, coordinate_count = xyz.shape
+            if self.num_joints is not None and self.coordinates_per_joint is not None:
+                expected_shape = (self.num_joints, self.coordinates_per_joint)
+                if (joint_count, coordinate_count) != expected_shape:
+                    raise ValueError(
+                        f"xyz ends with {(joint_count, coordinate_count)}, expected {expected_shape}"
+                    )
+            frame_features = xyz.reshape(batch_size, padded_time, -1)
+            if frame_features.shape[-1] != self.input_dim:
+                raise ValueError(
+                    f"Flattened frame feature dim is {frame_features.shape[-1]}, "
+                    f"expected input_dim={self.input_dim}"
+                )
+        else:
             raise ValueError(
-                "xyz must have shape [batch, time, joints, coordinates]"
-            )
-
-        batch_size, padded_time, joint_count, coordinate_count = xyz.shape
-        expected_shape = (self.num_joints, self.coordinates_per_joint)
-        if (joint_count, coordinate_count) != expected_shape:
-            raise ValueError(
-                f"xyz ends with {(joint_count, coordinate_count)}, "
-                f"expected {expected_shape}"
+                f"xyz must have shape [batch, time, 12] or [batch, time, 25, 3], got {xyz.shape}"
             )
 
         if lengths.ndim != 1 or lengths.shape[0] != batch_size:
@@ -113,8 +138,7 @@ class KeraalSharedBackbone(nn.Module):
         if bool((lengths_cpu > padded_time).any()):
             raise ValueError("a sequence length cannot exceed the padded time size")
 
-        # Flatten the 25 XYZ joints into 75 values for each frame.
-        frame_features = xyz.reshape(batch_size, padded_time, -1)
+        # [CHỈNH SỬA]: Đưa qua frame_encoder để ánh xạ từ input_dim sang frame_embedding_size (64)
         frame_features = self.frame_encoder(frame_features)
 
         # Packing tells the GRU to ignore padded frames in each sequence.

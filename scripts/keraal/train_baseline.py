@@ -243,6 +243,24 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Apply skeleton data augmentation (random Y-rotation, jitter, scaling) to train batches. (default: True, use --no-augment to disable)",
     )
+    # [BỔ SUNG MỚI]: Tham số cấu hình trích xuất 12 góc và cố định 90 frames
+    parser.add_argument(
+        "--input-dim",
+        type=int,
+        default=12,
+        help="Input feature dimension per frame (default: 12 joint angles)",
+    )
+    parser.add_argument(
+        "--target-length",
+        type=int,
+        default=90,
+        help="Fixed sequence length in frames (default: 90 frames, ~3s at 30 FPS)",
+    )
+    parser.add_argument(
+        "--no-angles",
+        action="store_true",
+        help="Disable 12-angle conversion and use raw 3D coordinates (25x3=75)",
+    )
     return parser.parse_args()
 
 
@@ -280,6 +298,7 @@ def main() -> int:
         splits_path = PROJECT_ROOT / "data" / "keraal" / splits_path.name
 
     try:
+        # [CHỈNH SỬA / BỔ SUNG]: Truyền cấu hình use_angles và target_length vào dataloaders
         loaders = build_keraal_dataloaders(
             keraal_root=args.keraal_root,
             manifest_path=manifest_path,
@@ -288,6 +307,8 @@ def main() -> int:
             batch_size=args.batch_size,
             relative_to_initial_spine_base=not args.no_origin_offset,
             preload=args.preload,
+            use_angles=not args.no_angles,
+            target_length=args.target_length,
         )
     except (FileNotFoundError, OSError, ValueError) as exc:
         print(f"Failed to initialize DataLoaders: {exc}", file=sys.stderr)
@@ -305,6 +326,7 @@ def main() -> int:
     print(f"  Train:      {len(train_loader.dataset)} clips ({len(train_loader)} batches)")
     print(f"  Validation: {len(val_loader.dataset)} clips ({len(val_loader)} batches)")
     print(f"  Test:       {len(test_loader.dataset)} clips ({len(test_loader)} batches)")
+    print(f"  Input features: {args.input_dim} dims | Sequence length: {args.target_length} frames")
 
     class_weights = None
     if args.use_class_weights:
@@ -319,7 +341,12 @@ def main() -> int:
             for task, w in class_weights.items():
                 print(f"  {task:20s}: {w.round(decimals=3).tolist()}")
 
-    model = KeraalSharedBackbone(pooling=args.pooling).to(args.device)
+    # [CHỈNH SỬA / BỔ SUNG]: Khởi tạo model với input_dim (12 góc khớp theo yêu cầu mới)
+    effective_input_dim = 75 if args.no_angles else args.input_dim
+    model = KeraalSharedBackbone(
+        input_dim=effective_input_dim,
+        pooling=args.pooling,
+    ).to(args.device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,

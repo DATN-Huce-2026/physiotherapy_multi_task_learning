@@ -141,6 +141,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Preload entire dataset into RAM",
     )
+    # [BỔ SUNG MỚI]: Tham số cấu hình trích xuất 12 góc và cố định 90 frames
+    parser.add_argument(
+        "--input-dim",
+        type=int,
+        default=12,
+        help="Input feature dimension per frame (default: 12 joint angles)",
+    )
+    parser.add_argument(
+        "--target-length",
+        type=int,
+        default=90,
+        help="Fixed sequence length in frames (default: 90 frames, ~3s at 30 FPS)",
+    )
+    parser.add_argument(
+        "--no-angles",
+        action="store_true",
+        help="Disable 12-angle conversion and use raw 3D coordinates (25x3=75)",
+    )
     return parser
 
 
@@ -168,6 +186,7 @@ def main() -> None:
     print(f"Output Dir:       {args.output_dir}")
     print("=" * 65)
 
+    # [CHỈNH SỬA / BỔ SUNG]: Truyền cấu hình use_angles và target_length vào dataloaders
     loaders = build_kimore_dataloaders(
         kimore_root=kimore_root,
         manifest_path=args.manifest,
@@ -176,6 +195,8 @@ def main() -> None:
         batch_size=args.batch_size,
         relative_to_initial_spine_base=not args.no_origin_offset,
         preload=args.preload,
+        use_angles=not args.no_angles,
+        target_length=args.target_length,
     )
 
     train_loader = loaders["train"]
@@ -190,8 +211,14 @@ def main() -> None:
     val_count = len(val_loader.dataset)
     test_count = len(test_loader.dataset)
     print(f"\n--> Dataset Splits: Train={train_count} | Val={val_count} | Test={test_count}")
+    print(f"--> Input features: {args.input_dim} dims | Sequence length: {args.target_length} frames")
 
-    model = KeraalSharedBackbone(pooling=args.pooling).to(device)
+    # [CHỈNH SỬA / BỔ SUNG]: Khởi tạo model với input_dim=12 cho 12 góc lâm sàng
+    effective_input_dim = 75 if args.no_angles else args.input_dim
+    model = KeraalSharedBackbone(
+        input_dim=effective_input_dim,
+        pooling=args.pooling,
+    ).to(device)
 
     optimizer = torch.optim.AdamW(
         model.parameters(),

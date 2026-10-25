@@ -257,6 +257,24 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Preload datasets into memory for maximum training speed",
     )
+    # [BỔ SUNG MỚI]: Cấu hình 12 góc và cố định 90 frames cho Joint MTL
+    parser.add_argument(
+        "--input-dim",
+        type=int,
+        default=12,
+        help="Input feature dimension per frame (default: 12 joint angles)",
+    )
+    parser.add_argument(
+        "--target-length",
+        type=int,
+        default=90,
+        help="Fixed sequence length in frames (default: 90 frames, ~3s at 30 FPS)",
+    )
+    parser.add_argument(
+        "--no-angles",
+        action="store_true",
+        help="Disable 12-angle conversion and use raw 3D coordinates (25x3=75)",
+    )
     return parser
 
 
@@ -296,6 +314,10 @@ def main() -> int:
     print("=" * 70)
 
     # 1. Initialize Datasets
+    use_angles = not args.no_angles
+    target_length = args.target_length
+    effective_input_dim = 75 if args.no_angles else args.input_dim
+
     print("\n--> Loading KERAAL Datasets...")
     keraal_train = KeraalMTLDataset(
         keraal_root,
@@ -304,6 +326,8 @@ def main() -> int:
         targets_path=args.keraal_targets,
         split_path=args.keraal_splits,
         preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     keraal_val = KeraalMTLDataset(
         keraal_root,
@@ -312,6 +336,8 @@ def main() -> int:
         targets_path=args.keraal_targets,
         split_path=args.keraal_splits,
         preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     keraal_test = KeraalMTLDataset(
         keraal_root,
@@ -320,6 +346,8 @@ def main() -> int:
         targets_path=args.keraal_targets,
         split_path=args.keraal_splits,
         preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
 
     print("--> Loading KiMoRe Datasets...")
@@ -330,6 +358,8 @@ def main() -> int:
         targets_path=args.kimore_targets,
         split_path=args.kimore_splits,
         preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     kimore_val = KimoreMTLDataset(
         kimore_root,
@@ -338,6 +368,8 @@ def main() -> int:
         targets_path=args.kimore_targets,
         split_path=args.kimore_splits,
         preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     kimore_test = KimoreMTLDataset(
         kimore_root,
@@ -346,14 +378,8 @@ def main() -> int:
         targets_path=args.kimore_targets,
         split_path=args.kimore_splits,
         preload=args.preload,
-    )
-    kimore_test = KimoreMTLDataset(
-        args.kimore_root,
-        split="test",
-        manifest_path=args.kimore_manifest,
-        targets_path=args.kimore_targets,
-        split_path=args.kimore_splits,
-        preload=args.preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
 
     # 2. Concatenate Datasets
@@ -365,6 +391,7 @@ def main() -> int:
     print(f"    * TRAIN : KERAAL={len(keraal_train):3} + KiMoRe={len(kimore_train):3} => Total={len(combined_train):4} clips")
     print(f"    * VAL   : KERAAL={len(keraal_val):3} + KiMoRe={len(kimore_val):3} => Total={len(combined_val):4} clips")
     print(f"    * TEST  : KERAAL={len(keraal_test):3} + KiMoRe={len(kimore_test):3} => Total={len(combined_test):4} clips")
+    print(f"    * Features: {effective_input_dim} dims | Length: {target_length} frames")
 
     train_loader = DataLoader(
         combined_train,
@@ -391,7 +418,11 @@ def main() -> int:
         class_weights = compute_keraal_class_weights(keraal_train)
 
     # 3. Model & Optimizer
-    model = KeraalSharedBackbone(pooling=args.pooling).to(device)
+    # [CHỈNH SỬA / BỔ SUNG]: Khởi tạo model với input_dim=12 cho 12 góc lâm sàng
+    model = KeraalSharedBackbone(
+        input_dim=effective_input_dim,
+        pooling=args.pooling,
+    ).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,

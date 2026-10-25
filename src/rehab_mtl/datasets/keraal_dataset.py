@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from rehab_mtl.datasets.keraal import load_keraal_mtl_sample
 from rehab_mtl.datasets.label_maps import TASK_MAPPINGS, encode_target
+from rehab_mtl.features.angles import transform_kinect_sequence_to_angles  # [BỔ SUNG]: Trích xuất 12 góc & resample 90 frames
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_MANIFEST_PATH = PROJECT_ROOT / "data" / "keraal" / "keraal_manifest.csv"
@@ -59,6 +60,8 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
         relative_to_initial_spine_base: bool = True,
         task_mappings: Mapping[str, Mapping[str, int]] | None = None,
         preload: bool = False,
+        use_angles: bool = True,  # [BỔ SUNG MỚI]: Chuyển chuỗi tọa độ thành 12 góc lâm sàng
+        target_length: int = 90,  # [BỔ SUNG MỚI]: Cố định độ dài chuỗi T=90 frames bằng interp1d
     ) -> None:
         super().__init__()
         self.keraal_root = Path(keraal_root)
@@ -69,6 +72,8 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
         self.relative_to_initial_spine_base = relative_to_initial_spine_base
         self.task_mappings = dict(task_mappings or TASK_MAPPINGS)
         self.preload = preload
+        self.use_angles = use_angles
+        self.target_length = target_length
 
         self.manifest_rows = _read_csv_by_sample_id(self.manifest_path)
         self.target_rows = _read_csv_by_sample_id(self.targets_path)
@@ -119,7 +124,18 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
             relative_to_initial_spine_base=self.relative_to_initial_spine_base,
         )
 
-        xyz_tensor = torch.tensor(sample["xyz"], dtype=torch.float32)
+        # [CHỈNH SỬA / BỔ SUNG]: Biến đổi đầu vào trước khi đưa vào mô hình
+        if self.use_angles:
+            # 1. Trích xuất 12 góc từng frame [T, 12] và 2. Nội suy co/giãn về đúng 90 frames [90, 12]
+            angles_data = transform_kinect_sequence_to_angles(
+                sample["xyz"], target_length=self.target_length
+            )
+            xyz_tensor = torch.tensor(angles_data, dtype=torch.float32)
+            seq_len = self.target_length
+        else:
+            # Dạng tọa độ cũ: [T, 25, 3]
+            xyz_tensor = torch.tensor(sample["xyz"], dtype=torch.float32)
+            seq_len = len(sample["xyz"])
 
         target_ids: dict[str, int] = {}
         target_masks: dict[str, bool] = {}
@@ -143,7 +159,7 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
         item = {
             "sample_id": sample_id,
             "xyz": xyz_tensor,
-            "length": len(sample["xyz"]),
+            "length": seq_len,
             "target_ids": target_ids,
             "target_masks": target_masks,
             "quality_target": torch.tensor(0.0, dtype=torch.float32),
@@ -159,11 +175,9 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
 
 
 def collate_keraal_mtl(batch: list[dict[str, Any]]) -> dict[str, Any]:
-    """Collate variable-length KERAAL sequence items into a padded batch.
+    """Collate variable-length or fixed-length KERAAL sequence items into a batch.
 
-    Pads the time dimension of `xyz` sequences with zeros up to the maximum sequence
-    length in the batch. Formats `target_ids` and `target_masks` as dictionary of tensors
-    directly compatible with `KeraalSharedBackbone` and `masked_multitask_cross_entropy`.
+    [CHỈNH SỬA / BỔ SUNG]: Hỗ trợ cả tensor 2D [T, 12] (12 góc) lẫn 3D [T, 25, 3] (tọa độ cũ).
     """
     if not batch:
         raise ValueError("batch cannot be empty")
@@ -172,16 +186,25 @@ def collate_keraal_mtl(batch: list[dict[str, Any]]) -> dict[str, Any]:
     lengths = torch.tensor([item["length"] for item in batch], dtype=torch.long)
     max_len = int(lengths.max().item())
 
-    # Shape: [batch, max_len, 25, 3]
-    num_joints = batch[0]["xyz"].shape[1]
-    coordinates = batch[0]["xyz"].shape[2]
-    padded_xyz = torch.zeros(
-        batch_size, max_len, num_joints, coordinates, dtype=torch.float32
-    )
-
-    for i, item in enumerate(batch):
-        seq_len = item["length"]
-        padded_xyz[i, :seq_len] = item["xyz"]
+    first_item = batch[0]["xyz"]
+    # Kiểm tra xem item là chuỗi góc [T, 12] hay tọa độ [T, 25, 3]
+    if first_item.ndim == 2:
+        # Chuỗi 12 góc: shape mỗi item là [T, 12]
+        feat_dim = first_item.shape[1]
+        padded_xyz = torch.zeros(batch_size, max_len, feat_dim, dtype=torch.float32)
+        for i, item in enumerate(batch):
+            seq_len = item["length"]
+            padded_xyz[i, :seq_len] = item["xyz"]
+    else:
+        # Chuỗi tọa độ cũ: shape mỗi item là [T, 25, 3]
+        num_joints = first_item.shape[1]
+        coordinates = first_item.shape[2]
+        padded_xyz = torch.zeros(
+            batch_size, max_len, num_joints, coordinates, dtype=torch.float32
+        )
+        for i, item in enumerate(batch):
+            seq_len = item["length"]
+            padded_xyz[i, :seq_len] = item["xyz"]
 
     task_names = list(batch[0]["target_ids"].keys())
     target_ids = {
@@ -227,6 +250,8 @@ def build_keraal_dataloaders(
     num_workers: int = 0,
     pin_memory: bool = False,
     preload: bool = False,
+    use_angles: bool = True,  # [BỔ SUNG MỚI]: Mặc định chuyển sang 12 góc
+    target_length: int = 90,  # [BỔ SUNG MỚI]: Mặc định nội suy về 90 frames
 ) -> dict[str, DataLoader[dict[str, Any]]]:
     """Construct train, validation, and test DataLoaders for KERAAL MTL.
 
@@ -243,6 +268,8 @@ def build_keraal_dataloaders(
         relative_to_initial_spine_base=relative_to_initial_spine_base,
         task_mappings=task_mappings,
         preload=preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     val_dataset = KeraalMTLDataset(
         keraal_root,
@@ -253,6 +280,8 @@ def build_keraal_dataloaders(
         relative_to_initial_spine_base=relative_to_initial_spine_base,
         task_mappings=task_mappings,
         preload=preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
     test_dataset = KeraalMTLDataset(
         keraal_root,
@@ -263,6 +292,8 @@ def build_keraal_dataloaders(
         relative_to_initial_spine_base=relative_to_initial_spine_base,
         task_mappings=task_mappings,
         preload=preload,
+        use_angles=use_angles,
+        target_length=target_length,
     )
 
     train_loader = DataLoader(

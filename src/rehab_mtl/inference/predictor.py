@@ -7,22 +7,41 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from rehab_mtl.features.angles import transform_kinect_sequence_to_angles  # [BỔ SUNG MỚI]
 from rehab_mtl.models.shared_backbone import KeraalSharedBackbone
 
 
 def load_model(path: str | Path, *, pooling: str = "mean") -> KeraalSharedBackbone:
-    model = KeraalSharedBackbone(pooling=pooling)
+    """Load model checkpoint và tự động nhận diện input_dim (12 góc hoặc 75 tọa độ)."""
     state = torch.load(Path(path), map_location="cpu", weights_only=True)
+    # [BỔ SUNG]: Tự động phát hiện kích thước lớp đầu vào từ trọng số checkpoint
+    in_features = state.get("frame_encoder.0.weight", torch.empty(0, 12)).shape[1] if "frame_encoder.0.weight" in state else 12
+    model = KeraalSharedBackbone(input_dim=in_features, pooling=pooling)
     model.load_state_dict(state)
     model.eval()
     return model
 
 
 @torch.no_grad()
-def _forward(model: KeraalSharedBackbone, xyz: np.ndarray) -> dict[str, torch.Tensor]:
-    # Giống lúc train: gốc tọa độ là SpineBase của frame đầu
-    xyz = np.asarray(xyz, dtype=np.float32)
-    xyz = xyz - xyz[0, 0]
+def _forward(model: KeraalSharedBackbone, sequence: np.ndarray) -> dict[str, torch.Tensor]:
+    """Forward một chuỗi qua mô hình (tự động chuyển sang 12 góc & 90 frames nếu model dùng input_dim=12)."""
+    seq = np.asarray(sequence, dtype=np.float32)
+
+    # [BỔ SUNG / CHỈNH SỬA]: Nếu mô hình học trên 12 góc và đầu vào là chuỗi tọa độ 25 khớp
+    if model.input_dim == 12:
+        if seq.ndim == 3 and seq.shape[1] == 25:
+            # Chuỗi [T, 25, 3] -> Chuyển thành 12 góc và nội suy về 90 frames [90, 12]
+            features = transform_kinect_sequence_to_angles(seq, target_length=90)
+        elif seq.ndim == 2 and seq.shape[1] == 12:
+            features = seq if len(seq) == 90 else transform_kinect_sequence_to_angles(seq, target_length=90)
+        else:
+            raise ValueError(f"Không thể chuyển đổi chuỗi shape {seq.shape} sang 12 góc")
+        tensor_in = torch.from_numpy(features).unsqueeze(0)  # [1, 90, 12]
+        lengths = torch.tensor([90], dtype=torch.long)
+        return model(tensor_in, lengths)
+
+    # [GIỮ NGUYÊN]: Trường hợp mô hình cũ dùng 75 tọa độ XYZ
+    xyz = seq - seq[0, 0]
     return model(
         torch.from_numpy(xyz).unsqueeze(0),
         torch.tensor([len(xyz)], dtype=torch.long),

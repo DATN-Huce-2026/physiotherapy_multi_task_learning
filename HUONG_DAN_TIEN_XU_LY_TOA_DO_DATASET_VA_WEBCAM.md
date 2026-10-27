@@ -175,7 +175,7 @@ MediaPipe không phát hiện trực tiếp cột sống. Các khớp này đư�
 
 ## 6. Đồng Bộ Hóa Thời Gian & Tần Số Lấy Mẫu (Temporal Resampling)
 
-Để mạng nơ-ron GRU/SharedBackbone xử lý nhất quán một chuỗi vận động, hệ thống áp dụng kỹ thuật co/giãn thời gian về **độ dài cố định $T=90$ frames** (~3 giây ở tốc độ 30 FPS).
+Để mạng nơ-ron GRU/SharedBackbone xử lý nhất quán một chuỗi vận động, hệ thống áp dụng kỹ thuật co/giãn thời gian về **độ dài cố định $T=90$ frames**. Đây là 90 mốc của toàn bộ lần tập, không mặc định tương ứng với 3 giây.
 
 ### Thuật toán nội suy tuyến tính:
 Hàm [`resample_sequence_to_fixed_length(sequence, target_length=90)`](file:///d:/DATN/physiotherapy_multi_task_learning/src/rehab_mtl/features/angles.py#L116-L152):
@@ -193,13 +193,19 @@ Hàm [`resample_sequence_to_fixed_length(sequence, target_length=90)`](file:///d
 Khi gọi hàm dự đoán thời gian thực tại [`src/rehab_mtl/inference/predictor.py`](file:///d:/DATN/physiotherapy_multi_task_learning/src/rehab_mtl/inference/predictor.py):
 
 ```python
-# Tự động phát hiện kích thước input từ checkpoint (12 góc hoặc 75 tọa độ)
-model = load_model("artifacts/kimore_baseline/best_model.pt")
+from rehab_mtl.features.angles import transform_kinect_sequence_to_angles
+from rehab_mtl.inference.predictor import load_model, predict
 
-# Nếu model.input_dim == 12:
-# Tự động nhận chuỗi 25 khớp [T, 25, 3] từ recorder,
-# tính 12 góc và nội suy về đúng [1, 90, 12] trước khi feed-forward qua mạng!
-outputs = _forward(model, keraal_sequence)
+# Tự động phát hiện kích thước input từ checkpoint (12 góc hoặc 75 tọa độ)
+model = load_model("artifacts/Model v7/best_model.pt")
+
+# Nếu model.input_dim == 12 và recorder đã thu xong một lần tập:
+# Lấp frame thiếu khớp ở mốc thời gian camera gốc, không lấy mẫu XYZ về 10/30 FPS.
+# Sau đó trừ SpineBase frame đầu và dùng chính hàm của training:
+xyz = recorder.sequence_for_angles()
+xyz = xyz - xyz[0, 0].copy()
+features = transform_kinect_sequence_to_angles(xyz, target_length=90)
+probabilities, quality = predict(model, features)  # features: [90, 12]
 ```
 
 Quá trình đánh giá hoàn chỉnh (Pass/Fail, loại lỗi, điểm số 0-100) được đóng gói trong hàm `assess()` tại [`src/rehab_mtl/inference/assessment.py`](file:///d:/DATN/physiotherapy_multi_task_learning/src/rehab_mtl/inference/assessment.py):
@@ -213,18 +219,42 @@ Quá trình đánh giá hoàn chỉnh (Pass/Fail, loại lỗi, điểm số 0-1
 ## 8. Hướng Dẫn Triển Khai Thực Tế & Code Mẫu Thời Gian Thực
 
 ### Cách 1: Chạy trực tiếp công cụ có sẵn trong repository
-Chạy lệnh đánh giá bài tập qua webcam với giao diện tương tác (phím `SPACE` bắt đầu/kết thúc 1 lần tập, phím `q` thoát):
+Chạy lệnh đánh giá bài tập qua webcam với giao diện tương tác. Mặc định người tập
+giữ yên khoảng 1 giây để hệ thống lấy tư thế gốc, thực hiện một lần tập, rồi
+trở về tư thế đó và giữ khoảng 0.8 giây. Hệ thống tự xác định đầu/cuối đoạn,
+chỉ chấm sau khi kết thúc. Phím `q` thoát; `--webcam-mode manual` bật lại cách
+nhấn `SPACE` để thử nghiệm:
 
-```bash
-# Cài đặt môi trường nếu chưa có
-pip install -e ".[inference]"
+```powershell
+# Windows PowerShell: cài môi trường Python 3.12 nếu chưa có
+uv venv --python 3.12 .venv
+uv pip install --python .venv/Scripts/python.exe -e ".[inference]"
 
-# Chạy đánh giá bài tập CTK qua webcam
-python scripts/assess_exercise.py --source 0 --exercise CTK
+# Chạy thử luồng RTK qua webcam; chưa dùng điểm để kết luận đúng/sai
+.venv/Scripts/python.exe scripts/assess_exercise.py --source 0 --exercise RTK
 ```
 
+Với checkpoint 12 góc, script chỉ chấm khi nhìn thấy đủ khớp ở ít nhất 70% số frame,
+không mất khớp quá 0.5 giây, và nhìn thấy khớp ở đầu/cuối lần tập. Điểm mặc định
+chỉ dựa trên các head phân loại KERAAL; `--quality-weight` bật thêm điểm KiMoRe.
+Nếu model dự đoán bài khác bài đã chọn bằng `--exercise`, script báo `CHƯA CHẤM`
+và không gán lỗi của bài dự đoán cho bài người dùng đang thử.
+Động tác RTK xoay thân quanh trục dọc, nhưng vector 12 góc hiện không chứa góc
+xoay thân này. Do đó, kể cả khi model dự đoán đúng nhãn RTK, điểm và nhãn lỗi
+trên webcam vẫn chưa đủ tin cậy để đánh giá kỹ thuật tập. Cần bổ sung đặc trưng
+xoay thân, train lại và kiểm định trên mẫu webcam trước khi dùng để chấm RTK.
+Các video RTK đúng đã kiểm tra trong KERAAL thực hiện khi ngồi; camera cần thấy
+rõ tay, thân, hông, chân và bàn chân. Đường khung xương vẽ trên video chỉ là lớp
+minh họa 2D, không phải toàn bộ tọa độ Kinect dùng để train.
+Ngưỡng tách lần tập tự động còn cần hiệu chỉnh bằng video webcam thật. Nếu người
+tập không trở về tư thế gốc trước thời gian tối đa, script bỏ qua lần tập đó.
+Việc đổi khung xương MediaPipe sang Kinect chỉ là xấp xỉ: `SpineMid` được đặt trên
+đoạn thẳng `SpineBase`–`SpineShoulder`, khiến góc `spine_flexion` gần như cố định
+trên webcam. Cần thử các lần tập thực tế để xác nhận độ tin cậy của kết quả và
+ngưỡng đúng/sai; cùng công thức tiền xử lý chưa bảo đảm hai cảm biến cho cùng phân bố góc.
+
 ### Cách 2: Triển khai Cửa Sổ Trượt (Sliding Window) chạy liên tục không cần nhấn phím
-Dưới đây là mã nguồn Python độc lập cho phép nhận diện liên tục theo thời gian thực:
+Dưới đây là mã nguồn Python độc lập để thử nhận diện liên tục. Cửa sổ trượt không xác định ranh giới một lần tập, nên không dùng kết quả này để chấm đúng/sai và gán lỗi theo luồng ở Cách 1:
 
 ```python
 """webcam_streaming_demo.py: Dự đoán chuyển động thời gian thực bằng Sliding Window."""

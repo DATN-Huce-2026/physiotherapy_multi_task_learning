@@ -106,10 +106,24 @@ def assess(
         "error": None,
     }
     if expected_exercise and expected_exercise != exercise:
-        result["warnings"].append(
-            f"Model nhận ra bài {exercise} ({exercise_conf:.0%}) nhưng bài cần tập là "
-            f"{expected_exercise}: có thể tập nhầm bài hoặc động tác sai nhiều."
+        # Error1/2/3 descriptions depend on the exercise. A disagreement cannot
+        # be turned into a meaningful correctness score for the selected exercise.
+        result.update(
+            verdict="CHƯA CHẤM",
+            passed=None,
+            score=None,
+            grade=None,
+            correctness=None,
+            quality=None,
+            error=None,
+            unscored_reason="exercise_mismatch",
+            expected_exercise=expected_exercise,
         )
+        result["warnings"].append(
+            f"Model dự đoán {exercise} ({exercise_conf:.0%}), khác bài đã chọn "
+            f"{expected_exercise}; chưa thể chấm đúng/sai hoặc gán lỗi cho lần tập này."
+        )
+        return result
     if exercise_conf < 0.6:
         result["warnings"].append(
             f"Model không chắc đây là bài nào (độ tin cậy {exercise_conf:.0%})."

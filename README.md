@@ -121,28 +121,48 @@ The validator reads one clip at a time. The target preview is still provisional;
 this command checks data wiring and masks, not whether the annotation policy is
 final.
 
-## Test một lần tập bằng model đã train (Model v6)
+## Test một lần tập bằng model đã train (Model v7)
 
-`scripts/assess_exercise.py` dùng checkpoint `artifacts/model_v6/best_model.pt`
+`scripts/assess_exercise.py` mặc định dùng checkpoint `artifacts/Model v7/best_model.pt`
 (train gộp KERAAL + KiMoRe, có head `quality`) để đánh giá một lần tập từ webcam
 hoặc video: **ĐÚNG/SAI**, **sai ở đâu** (loại lỗi, bộ phận, mức độ) và **điểm 0-100**.
 
-```bash
-pip install -e ".[inference]"
-python scripts/assess_exercise.py --source 0 --exercise CTK              # webcam
-python scripts/assess_exercise.py --source video.mp4 --exercise ELK --no-display
+Trên Windows PowerShell, dùng Python 3.12 trong `.venv` của project:
+
+```powershell
+uv venv --python 3.12 .venv
+uv pip install --python .venv/Scripts/python.exe -e ".[inference]"
+.venv/Scripts/python.exe scripts/assess_exercise.py --source 0 --exercise RTK
+.venv/Scripts/python.exe scripts/assess_exercise.py --source video.mp4 --exercise ELK --no-display
 ```
 
-- Webcam: SPACE bắt đầu (đếm ngược 3 giây), SPACE kết thúc một lần tập, `q` thoát.
+- Webcam mặc định không cần chạm bàn phím: giữ yên khoảng 1 giây để lấy tư thế
+  gốc, thực hiện một lần tập, rồi trở về tư thế gốc và giữ khoảng 0.8 giây để
+  hệ thống chấm. `q` thoát. Có thể dùng `--webcam-mode manual` để thử bằng SPACE.
   Video file: cả video là một lần tập. `--report ket_qua.json` để lưu kết quả.
+- Bộ tự tách lần tập dùng ngưỡng chuyển động của thân và tay, chưa được hiệu chỉnh
+  trên video webcam thật. Nếu không trở về tư thế gốc trước `--max-seconds`, lần
+  tập được bỏ qua thay vì chấm một đoạn chưa hoàn chỉnh.
 - MediaPipe Pose được chuyển sang khung xương Kinect v2 25 khớp
-  (`src/rehab_mtl/inference/mediapipe_to_kinect.py`). Các head phân loại nhận chuỗi
-  10 fps như KERAAL; head `quality` nhận chuỗi 30 fps như KiMoRe.
+  (`src/rehab_mtl/inference/mediapipe_to_kinect.py`). Với model 12 góc, frame
+  thiếu khớp được lấp ở mốc thời gian gốc, rồi dùng cùng hàm tiền xử lý như
+  training: tính 12 góc từng frame và nội suy chuỗi góc về `[90, 12]`.
 - ĐÚNG/SAI lấy từ ba head có lớp "đúng" (`global_evaluation`, `exercise_error_class`,
-  `error_type`). Điểm = 50% độ đúng của các head đó + 50% head `quality`
-  (`--quality-weight` để đổi tỉ trọng). Head `quality` chỉ có nhãn ở KiMoRe nên chưa
-  phân biệt được đúng/sai trên bài KERAAL.
+  `error_type`). Mặc định điểm chỉ dùng độ đúng của các head này; có thể bật
+  thành phần `quality` bằng `--quality-weight`. Head `quality` chỉ có nhãn ở
+  KiMoRe nên chưa phân biệt được đúng/sai trên bài KERAAL.
+- Nếu bài model dự đoán khác `--exercise` đã chọn, kết quả là `CHƯA CHẤM`:
+  chương trình vẫn báo bài dự đoán nhưng không xuất điểm hay mô tả lỗi của bài khác.
+- Riêng RTK là phép xoay thân sang trái/phải; bộ 12 góc hiện tại không có góc
+  xoay thân quanh trục dọc. Vì vậy kết quả RTK từ webcam chỉ phù hợp để thử
+  luồng ghi hình/tiền xử lý, chưa đủ tin cậy để đánh giá người tập. Cần thêm
+  đặc trưng xoay thân, train lại checkpoint và kiểm định trên dữ liệu webcam.
+  Các video RTK đúng đã kiểm tra trong KERAAL thực hiện ở tư thế ngồi; khi thử
+  luồng ghi hình hãy để camera thấy rõ cả tay, thân, hông, chân và bàn chân.
 - Mô tả cụ thể của Error1/2/3 sửa trong `src/rehab_mtl/inference/error_descriptions.json`.
+- Đây là phép chuyển đổi xấp xỉ từ MediaPipe sang Kinect, cần kiểm tra với các lần
+  tập webcam thật trước khi tin vào ngưỡng đúng/sai. MediaPipe không có `SpineMid`:
+  khớp này được nội suy thẳng, nên góc `spine_flexion` trên webcam gần như cố định.
 - Trên Windows, đặt virtualenv ở đường dẫn không dấu: MediaPipe không mở được file model
   khi đường dẫn thư viện có ký tự như "Đ".
 - Chạy test: `python -m unittest discover -s tests -t .` (sau `pip install -e .`).

@@ -59,9 +59,14 @@ class TestAssess(unittest.TestCase):
         self.assertEqual(error["severity"], "LargeError")
         self.assertIn("tay trái", error["message"])
 
-    def test_canh_bao_khi_tap_nham_bai(self):
+    def test_khong_cham_khi_du_doan_khac_bai_da_chon(self):
         result = assess(probabilities(exercise=[0.1, 0.8, 0.1]), expected_exercise="CTK")
         self.assertEqual(result["exercise"], "ELK")
+        self.assertEqual(result["verdict"], "CHƯA CHẤM")
+        self.assertIsNone(result["passed"])
+        self.assertIsNone(result["score"])
+        self.assertIsNone(result["error"])
+        self.assertEqual(result["unscored_reason"], "exercise_mismatch")
         self.assertTrue(any("CTK" in warning for warning in result["warnings"]))
 
 

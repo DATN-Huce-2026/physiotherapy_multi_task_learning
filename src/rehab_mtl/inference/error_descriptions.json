@@ -1,5 +1,5 @@
 {
-  "_ghi_chu": "Mô tả hiển thị cho từng lỗi. Repo train chỉ lưu mã Error1/2/3, chưa có định nghĩa cụ thể; hãy thay các mô tả bên dưới bằng định nghĩa lỗi của bộ KERAAL cho từng bài.",
+  "_ghi_chu": "Mô tả Error1/2/3 của RTK và ELK theo tài liệu mapping error cho keraal.docx. Tài liệu chưa có ánh xạ CTK nên giữ mô tả chung cho CTK.",
   "exercise_names": {
     "CTK": "CTK - Che mặt (Cache-tête)",
     "ELK": "ELK - Kéo giãn bên (Étirement latéral)",
@@ -13,15 +13,15 @@
       "Other": "Lỗi khác"
     },
     "ELK": {
-      "Error1": "Lỗi loại 1 của bài ELK",
-      "Error2": "Lỗi loại 2 của bài ELK",
-      "Error3": "Lỗi loại 3 của bài ELK",
+      "Error1": "Tay đối diện không giữ dọc theo thân",
+      "Error2": "Thân chưa nghiêng đủ",
+      "Error3": "Tay phía trên chưa gập đúng",
       "Other": "Lỗi khác"
     },
     "RTK": {
-      "Error1": "Lỗi loại 1 của bài RTK",
-      "Error2": "Lỗi loại 2 của bài RTK",
-      "Error3": "Lỗi loại 3 của bài RTK",
+      "Error1": "Hai tay nâng chưa đủ cao",
+      "Error2": "Mức xoay thân chưa đủ",
+      "Error3": "Thân bị nghiêng sang bên",
       "Other": "Lỗi khác"
     }
   }

@@ -5,6 +5,7 @@ import numpy as np
 
 from rehab_mtl.inference.mediapipe_to_kinect import (
     LEFT_HIP,
+    LEFT_KNEE,
     LEFT_SHOULDER,
     LEFT_WRIST,
     RIGHT_HIP,
@@ -94,6 +95,39 @@ class TestSkeletonRecorder(unittest.TestCase):
         self.assertEqual(recorder.sequence(30.0).shape, (7, 25, 3))  # KiMoRe
         recorder.reset()
         self.assertEqual(len(recorder), 0)
+
+    def test_sequence_for_angles_fills_missing_frame_without_changing_frame_count(self):
+        recorder = SkeletonRecorder(min_visibility=0.5, pitch_deg=0)
+        first = standing_pose()
+        last = first.copy()
+        last[LEFT_WRIST, 1] -= 0.2
+        recorder.add(0.0, fake_results(first))
+        recorder.add(0.1, None)
+        recorder.add(0.2, fake_results(last))
+
+        sequence = recorder.sequence_for_angles()
+        self.assertEqual(sequence.shape, (3, 25, 3))
+        expected_middle = (
+            mediapipe_world_to_kinect(first, pitch_deg=0)
+            + mediapipe_world_to_kinect(last, pitch_deg=0)
+        ) / 2
+        np.testing.assert_allclose(sequence[1], expected_middle, atol=1e-6)
+
+    def test_sequence_for_angles_rejects_long_tracking_gap(self):
+        recorder = SkeletonRecorder(pitch_deg=0)
+        recorder.add(0.0, fake_results(standing_pose()))
+        recorder.add(0.4, None)
+        recorder.add(0.8, fake_results(standing_pose()))
+
+        with self.assertRaisesRegex(ValueError, "Mất khớp quá lâu"):
+            recorder.sequence_for_angles(max_gap_seconds=0.5)
+
+    def test_recorder_requires_knee_visibility_for_angle_features(self):
+        recorder = SkeletonRecorder(pitch_deg=0)
+        result = fake_results(standing_pose())
+        result.pose_world_landmarks.landmark[LEFT_KNEE].visibility = 0.1
+
+        self.assertFalse(recorder.add(0.0, result))
 
 
 if __name__ == "__main__":

@@ -6,9 +6,9 @@ from collections.abc import Mapping
 # 1. Exercise Classification (Phân loại bài tập phục hồi chức năng)
 # ==============================================================================
 EXERCISE_TO_ID = {
-    "CTK": 0,  # Clear The Desk / Lateral trunk tilt (Nghiêng thân mình sang bên)
-    "ELK": 1,  # Elevate the arms / Bilateral arm lifting (Vươn/nâng hai cánh tay)
-    "RTK": 2,  # Rotate trunk / Trunk rotation (Xoay thân mình)
+    "CTK": 0,  # Cache-tête / hiding face (Che mặt)
+    "ELK": 1,  # Étirement latéral / flank stretch (Kéo giãn bên)
+    "RTK": 2,  # Rotation du tronc / torso rotation (Xoay thân)
 }
 
 # ==============================================================================

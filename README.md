@@ -148,9 +148,12 @@ uv pip install --python .venv/Scripts/python.exe -e ".[inference]"
   thiếu khớp được lấp ở mốc thời gian gốc, rồi dùng cùng hàm tiền xử lý như
   training: tính 12 góc từng frame và nội suy chuỗi góc về `[90, 12]`.
 - ĐÚNG/SAI lấy từ ba head có lớp "đúng" (`global_evaluation`, `exercise_error_class`,
-  `error_type`). Mặc định điểm chỉ dùng độ đúng của các head này; có thể bật
-  thành phần `quality` bằng `--quality-weight`. Head `quality` chỉ có nhãn ở
-  KiMoRe nên chưa phân biệt được đúng/sai trên bài KERAAL.
+  `error_type`). Mặc định điểm tính theo cơ chế trừ điểm theo mức độ nghiêm trọng
+  (`--scoring-mode penalty`: đúng đạt 90-100, lỗi nhẹ 70-85, lỗi nặng 30-50,
+  chưa hoàn thành 35-50, không chuyển động 5-20); có thể dùng `--scoring-mode strict`
+  để giữ cách tính điểm theo xác suất độ đúng ban đầu. Có thể bật thành phần
+  `quality` bằng `--quality-weight`. Head `quality` chỉ có nhãn ở KiMoRe nên chưa
+  phân biệt được đúng/sai trên bài KERAAL.
 - Nếu bài model dự đoán khác `--exercise` đã chọn, kết quả là `CHƯA CHẤM`:
   chương trình vẫn báo bài dự đoán nhưng không xuất điểm hay mô tả lỗi của bài khác.
 - Riêng RTK là phép xoay thân sang trái/phải; bộ 12 góc hiện tại không có góc

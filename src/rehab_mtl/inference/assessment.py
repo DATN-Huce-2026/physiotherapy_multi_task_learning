@@ -1,7 +1,11 @@
 """Đổi đầu ra của model thành kết quả: đúng/sai, sai ở đâu, điểm 0-100.
 
 - Đúng/sai: trung bình P(đúng) / (P(đúng) + P(lỗi mạnh nhất)) của 3 head có lớp đúng.
-- Điểm: (1 - quality_weight) × độ đúng + quality_weight × quality.
+- Điểm:
+  + Chế độ 'penalty' (mặc định): trừ điểm từ 100 theo mức độ nghiêm trọng
+    (đúng: 90-100, lỗi nhẹ SmallError: 70-85, lỗi nặng LargeError: 30-50,
+    chưa hoàn thành: 35-50, không chuyển động: 5-20).
+  + Chế độ 'strict': (1 - quality_weight) × độ đúng + quality_weight × quality.
 """
 
 from __future__ import annotations
@@ -9,18 +13,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from typing import Any
+
 import numpy as np
 
 from rehab_mtl.datasets.label_maps import TASK_MAPPINGS
 
 # Tên lớp theo thứ tự id lúc train
 TASK_LABELS: dict[str, tuple[str, ...]] = {
-    task: tuple(sorted(mapping, key=mapping.get)) for task, mapping in TASK_MAPPINGS.items()
+    task: tuple(sorted(mapping, key=lambda k: mapping[k])) for task, mapping in TASK_MAPPINGS.items()
 }
 CORRECT_HEADS = ("global_evaluation", "exercise_error_class", "error_type")
 ERROR_CODES = ("Error1", "Error2", "Error3", "Other")
 DEFAULT_PASS_SCORE = 50.0
 DEFAULT_QUALITY_WEIGHT = 0.5
+DEFAULT_SCORING_MODE = "penalty"
+VALID_SCORING_MODES = ("penalty", "strict")
 
 GLOBAL_EVALUATION_VI = {
     "Correct": "Đúng",
@@ -46,7 +54,7 @@ def grade_of(score: float) -> str:
     return GRADES[-1][1]
 
 
-def load_descriptions(path: str | Path | None = None) -> dict[str, object]:
+def load_descriptions(path: str | Path | None = None) -> dict[str, Any]:
     with Path(path or DEFAULT_DESCRIPTIONS).open(encoding="utf-8") as file:
         return json.load(file)
 
@@ -63,12 +71,17 @@ def assess(
     expected_exercise: str | None = None,
     pass_score: float = DEFAULT_PASS_SCORE,
     quality_weight: float = DEFAULT_QUALITY_WEIGHT,
-    descriptions: dict[str, object] | None = None,
-) -> dict[str, object]:
+    scoring_mode: str = DEFAULT_SCORING_MODE,
+    descriptions: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     if not 0 < pass_score < 100:
         raise ValueError("pass_score phải nằm trong (0, 100)")
     if not 0 <= quality_weight <= 1:
         raise ValueError("quality_weight phải nằm trong [0, 1]")
+    if scoring_mode not in VALID_SCORING_MODES:
+        raise ValueError(
+            f"scoring_mode phải là một trong {VALID_SCORING_MODES}, nhận được: {scoring_mode!r}"
+        )
     descriptions = descriptions or load_descriptions()
     probs = {task: np.asarray(probabilities[task], dtype=float) for task in TASK_LABELS}
 
@@ -78,16 +91,112 @@ def assess(
         for task in CORRECT_HEADS
     ]
     correctness = 100.0 * float(np.mean(head_correctness))
-    quality_score = None if quality is None else 100.0 * float(np.clip(quality, 0, 1))
-    if quality_score is None:
-        score = correctness
-    else:
-        score = (1 - quality_weight) * correctness + quality_weight * quality_score
-    score = round(score, 1)
     passed = correctness >= pass_score
 
     exercise, exercise_conf = _top("exercise", probs["exercise"])
-    result: dict[str, object] = {
+    if expected_exercise and expected_exercise != exercise:
+        return {
+            "exercise": exercise,
+            "exercise_name": descriptions["exercise_names"].get(exercise, exercise),
+            "exercise_confidence": exercise_conf,
+            "verdict": "CHƯA CHẤM",
+            "passed": None,
+            "score": None,
+            "grade": None,
+            "correctness": None,
+            "quality": None,
+            "pass_score": pass_score,
+            "scoring_mode": scoring_mode,
+            "head_predictions": {
+                task: dict(zip(("label", "confidence"), _top(task, probs[task])))
+                for task in TASK_LABELS
+            },
+            "warnings": [
+                f"Model dự đoán {exercise} ({exercise_conf:.0%}), khác bài đã chọn "
+                f"{expected_exercise}; chưa thể chấm đúng/sai hoặc gán lỗi cho lần tập này."
+            ],
+            "error": None,
+            "unscored_reason": "exercise_mismatch",
+            "expected_exercise": expected_exercise,
+        }
+
+    warnings: list[str] = []
+    if exercise_conf < 0.6:
+        warnings.append(
+            f"Model không chắc đây là bài nào (độ tin cậy {exercise_conf:.0%})."
+        )
+
+    # Trích xuất thông tin lỗi nếu không passed
+    error_info = None
+    if not passed:
+        eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))
+        err = dict(zip(TASK_LABELS["error_type"], probs["error_type"]))
+        error_probabilities = {
+            code: float(np.mean([eec[code], err[code]])) if code in eec else float(err[code])
+            for code in ERROR_CODES
+        }
+        error_code = max(error_probabilities, key=lambda k: error_probabilities[k])
+        error_conf = error_probabilities[error_code]
+        reason = TASK_LABELS["global_evaluation"][1 + int(np.argmax(probs["global_evaluation"][1:]))]
+        body_part, body_conf = _top("body_part", probs["body_part"])
+        severity, severity_conf = _top("severity", probs["severity"])
+        description = descriptions["errors"].get(exercise, {}).get(error_code, error_code)
+        error_info = {
+            "reason": reason,
+            "error_type": error_code,
+            "error_type_confidence": round(error_conf, 4),
+            "description": description,
+            "body_part": body_part,
+            "body_part_confidence": body_conf,
+            "severity": severity,
+            "severity_confidence": severity_conf,
+            "message": (
+                f"{GLOBAL_EVALUATION_VI[reason]}: {description} "
+                f"({error_conf:.0%}) - bộ phận: "
+                f"{BODY_PART_VI[body_part]} ({body_conf:.0%}) - mức độ: "
+                f"{SEVERITY_VI[severity]} ({severity_conf:.0%})"
+            ),
+        }
+
+    # Tính điểm phân loại
+    if scoring_mode == "penalty":
+        if passed:
+            norm = max(100.0 - pass_score, 1e-12)
+            classification_score = 90.0 + 10.0 * float(
+                np.clip((correctness - pass_score) / norm, 0.0, 1.0)
+            )
+        else:
+            assert error_info is not None
+            p_small = float(probs["severity"][0])
+            p_large = float(probs["severity"][1])
+            sev_sum = max(p_small + p_large, 1e-12)
+            p_small /= sev_sum
+            p_large /= sev_sum
+
+            if error_info["reason"] == "Motionless":
+                motionless_conf = float(probs["global_evaluation"][3])
+                penalty = 80.0 + 15.0 * motionless_conf
+            elif error_info["reason"] == "Incomplete":
+                incomplete_conf = float(probs["global_evaluation"][2])
+                penalty = 50.0 + 15.0 * incomplete_conf
+            else:  # Incorrect: trừ điểm theo SmallError (15-30) hoặc LargeError (50-70)
+                err_conf = float(error_info["error_type_confidence"])
+                penalty_small = 15.0 + 15.0 * err_conf
+                penalty_large = 50.0 + 20.0 * err_conf
+                penalty = p_small * penalty_small + p_large * penalty_large
+
+            classification_score = float(np.clip(100.0 - penalty, 0.0, 100.0))
+    else:  # "strict"
+        classification_score = correctness
+
+    quality_score = None if quality is None else 100.0 * float(np.clip(quality, 0, 1))
+    if quality_score is None:
+        score = classification_score
+    else:
+        score = (1 - quality_weight) * classification_score + quality_weight * quality_score
+    score = round(score, 1)
+
+    return {
         "exercise": exercise,
         "exercise_name": descriptions["exercise_names"].get(exercise, exercise),
         "exercise_confidence": exercise_conf,
@@ -98,65 +207,11 @@ def assess(
         "correctness": round(correctness, 1),
         "quality": None if quality_score is None else round(quality_score, 1),
         "pass_score": pass_score,
+        "scoring_mode": scoring_mode,
         "head_predictions": {
             task: dict(zip(("label", "confidence"), _top(task, probs[task])))
             for task in TASK_LABELS
         },
-        "warnings": [],
-        "error": None,
+        "warnings": warnings,
+        "error": error_info,
     }
-    if expected_exercise and expected_exercise != exercise:
-        # Error1/2/3 descriptions depend on the exercise. A disagreement cannot
-        # be turned into a meaningful correctness score for the selected exercise.
-        result.update(
-            verdict="CHƯA CHẤM",
-            passed=None,
-            score=None,
-            grade=None,
-            correctness=None,
-            quality=None,
-            error=None,
-            unscored_reason="exercise_mismatch",
-            expected_exercise=expected_exercise,
-        )
-        result["warnings"].append(
-            f"Model dự đoán {exercise} ({exercise_conf:.0%}), khác bài đã chọn "
-            f"{expected_exercise}; chưa thể chấm đúng/sai hoặc gán lỗi cho lần tập này."
-        )
-        return result
-    if exercise_conf < 0.6:
-        result["warnings"].append(
-            f"Model không chắc đây là bài nào (độ tin cậy {exercise_conf:.0%})."
-        )
-    if passed:
-        return result
-
-    # Gộp xác suất mã lỗi từ 2 head
-    eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))
-    err = dict(zip(TASK_LABELS["error_type"], probs["error_type"]))
-    error_probabilities = {
-        code: float(np.mean([eec[code], err[code]])) if code in eec else float(err[code])
-        for code in ERROR_CODES
-    }
-    error_code = max(error_probabilities, key=error_probabilities.get)
-    reason = TASK_LABELS["global_evaluation"][1 + int(np.argmax(probs["global_evaluation"][1:]))]
-    body_part, body_conf = _top("body_part", probs["body_part"])
-    severity, severity_conf = _top("severity", probs["severity"])
-    description = descriptions["errors"].get(exercise, {}).get(error_code, error_code)
-    result["error"] = {
-        "reason": reason,
-        "error_type": error_code,
-        "error_type_confidence": round(error_probabilities[error_code], 4),
-        "description": description,
-        "body_part": body_part,
-        "body_part_confidence": body_conf,
-        "severity": severity,
-        "severity_confidence": severity_conf,
-        "message": (
-            f"{GLOBAL_EVALUATION_VI[reason]}: {description} "
-            f"({error_probabilities[error_code]:.0%}) - bộ phận: "
-            f"{BODY_PART_VI[body_part]} ({body_conf:.0%}) - mức độ: "
-            f"{SEVERITY_VI[severity]} ({severity_conf:.0%})"
-        ),
-    }
-    return result

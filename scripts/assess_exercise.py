@@ -16,6 +16,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import cv2
 import mediapipe as mp
@@ -80,6 +81,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="Tỉ trọng head quality KiMoRe trong điểm cuối (mặc định: 0)",
     )
+    parser.add_argument(
+        "--scoring-mode",
+        choices=("penalty", "strict"),
+        default="penalty",
+        help="Chế độ tính điểm: 'penalty' (trừ điểm theo mức độ lỗi, mặc định) hoặc 'strict' (theo xác suất độ đúng)",
+    )
     parser.add_argument("--min-visibility", type=float, default=0.5)
     parser.add_argument(
         "--camera-pitch",
@@ -93,10 +100,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, object]:
+def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, Any]:
     total = len(recorder)
     visible_ratio = recorder.visible_frames / total if total else 0.0
-    attempt: dict[str, object] = {
+    attempt: dict[str, Any] = {
         "duration_seconds": round(recorder.duration, 2),
         "visible_ratio": round(visible_ratio, 3),
     }
@@ -138,13 +145,14 @@ def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, object]:
         expected_exercise=args.exercise,
         pass_score=args.pass_score,
         quality_weight=args.quality_weight,
+        scoring_mode=args.scoring_mode,
         descriptions=descriptions,
     )
     attempt["assessment"] = result
     return attempt
 
 
-def print_attempt(number: int, attempt: dict[str, object]) -> None:
+def print_attempt(number: int, attempt: dict[str, Any]) -> None:
     print("-" * 72)
     print(f"Lần {number}: {attempt['duration_seconds']} giây")
     if "skipped" in attempt:
@@ -274,6 +282,7 @@ def run(args: argparse.Namespace) -> int:
         return 1
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     pose = mp.solutions.pose.Pose(model_complexity=1)
+    pose_connections = list(mp.solutions.pose.POSE_CONNECTIONS)
     recorder = SkeletonRecorder(args.min_visibility, args.camera_pitch)
     detector = (
         AutoAttemptDetector(
@@ -288,8 +297,8 @@ def run(args: argparse.Namespace) -> int:
         cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
     state = "idle" if is_webcam else "recording"
     countdown_end = 0.0
-    attempts: list[dict[str, object]] = []
-    last_attempt: dict[str, object] | None = None
+    attempts: list[dict[str, Any]] = []
+    last_attempt: dict[str, Any] | None = None
     frame_index = 0
 
     def finish_attempt(skip_reason: str | None = None) -> None:
@@ -323,12 +332,12 @@ def run(args: argparse.Namespace) -> int:
             now = time.monotonic() if is_webcam else frame_index / fps
             frame_index += 1
             # Dùng ảnh chưa lật để trái/phải đúng
-            results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            results: Any = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             kinect_frame = usable_kinect_frame(
                 results, args.min_visibility, args.camera_pitch
             )
 
-            if auto_mode:
+            if detector is not None:
                 was_recording = detector.state == "recording"
                 event = detector.update(now, kinect_frame)
                 if event == "start":
@@ -356,16 +365,17 @@ def run(args: argparse.Namespace) -> int:
 
             if args.no_display:
                 continue
-            if results.pose_landmarks:
+            pose_landmarks = getattr(results, "pose_landmarks", None)
+            if pose_landmarks:
                 mp.solutions.drawing_utils.draw_landmarks(
-                    frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
+                    frame, pose_landmarks, pose_connections
                 )
             if is_webcam:
                 frame = cv2.flip(frame, 1)  # lật như gương khi hiển thị
             draw_panel(
                 frame,
                 overlay_lines(
-                    detector.state if auto_mode else state,
+                    detector.state if detector is not None else state,
                     recorder,
                     last_attempt,
                     now,
@@ -392,7 +402,7 @@ def run(args: argparse.Namespace) -> int:
         pose.close()
         cv2.destroyAllWindows()
 
-    if auto_mode and detector.state == "recording" and len(recorder):
+    if detector is not None and detector.state == "recording" and len(recorder):
         finish_attempt("Lần tập chưa kết thúc khi đóng camera")
     elif state == "recording" and len(recorder):
         finish_attempt()
@@ -400,7 +410,7 @@ def run(args: argparse.Namespace) -> int:
     assessed = [
         a["assessment"]
         for a in attempts
-        if "assessment" in a and a["assessment"]["passed"] is not None
+        if isinstance(a.get("assessment"), dict) and a["assessment"].get("passed") is not None
     ]
     print("=" * 72)
     print(

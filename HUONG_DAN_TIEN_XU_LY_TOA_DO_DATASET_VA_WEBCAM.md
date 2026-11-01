@@ -213,6 +213,13 @@ Quá trình đánh giá hoàn chỉnh (Pass/Fail, loại lỗi, điểm số 0-1
 - **Phát hiện lỗi sai**: Đọc head `global_evaluation`, `error_type`, `severity`, `body_part`.
 - **Tính điểm tổng hợp**:
   $$\text{Final Score} = (1 - w_{\text{quality}}) \times \text{Score}_{\text{classification}} + w_{\text{quality}} \times \text{Score}_{\text{quality}}$$
+  Trong đó $\text{Score}_{\text{classification}}$ mặc định được tính theo cơ chế trừ điểm (`scoring_mode='penalty'`):
+  - **Đúng hoàn toàn**: Thang điểm 90 – 100 tùy theo độ tự tin.
+  - **Lỗi nhẹ (`SmallError`)**: Trừ 15 – 30 điểm tùy độ tự tin lỗi $\rightarrow$ đạt **70 – 85 điểm** (mức Khá/Đạt).
+  - **Lỗi nặng (`LargeError`)**: Trừ 50 – 70 điểm $\rightarrow$ đạt **30 – 50 điểm** (mức Chưa đạt/Kém).
+  - **Chưa hoàn thành (`Incomplete`)**: Đạt **35 – 50 điểm**.
+  - **Không có chuyển động (`Motionless`)**: Đạt **5 – 20 điểm**.
+  *(Có thể chuyển về chế độ cũ bằng `--scoring-mode strict`).*
 
 ---
 

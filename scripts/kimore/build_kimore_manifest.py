@@ -28,9 +28,9 @@ DEFAULT_KIMORE_ROOT = Path(r"D:\DATN\KIMORE")
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "kimore"
 
 EXERCISE_KERAAL_EQUIVALENTS = {
-    "Es1": "ELK",  # Bilateral arm lifting (vươn/nâng hai tay)
-    "Es2": "CTK",  # Lateral trunk tilt (nghiêng thân sang bên)
-    "Es3": "RTK",  # Trunk rotation (xoay thân)
+    "Es1": "CTK",  # Bilateral arm lifting (vươn/nâng hai tay tương ứng Cache-tête)
+    "Es2": "ELK",  # Lateral trunk tilt (nghiêng thân sang bên tương ứng Étirement latéral)
+    "Es3": "RTK",  # Trunk rotation (xoay thân tương ứng Rotation du tronc)
     "Es4": None,   # Pelvis rotation
     "Es5": None,   # Squat
 }

@@ -46,19 +46,20 @@ class TestAssess(unittest.TestCase):
         result = assess(probabilities(), quality=None)
         self.assertEqual(result["verdict"], "ĐÚNG")
         self.assertIsNone(result["error"])
-        # Độ đúng 83.7 -> chuẩn hóa theo (83.7 - 50) / 50 -> 90 + 10 * 0.674 = 96.7
-        self.assertAlmostEqual(result["score"], 96.7, places=1)
+        # Độ đúng 83.7 -> chuẩn hóa theo (83.7 - 40) / 60 -> 90 + 10 * 0.728 = 97.3
+        self.assertAlmostEqual(result["score"], 97.3, places=1)
         self.assertEqual(result["grade"], "Tốt")
 
     def test_penalty_dong_tac_dung_ket_hop_quality(self):
         result = assess(probabilities(), quality=0.9, expected_exercise="CTK")
         self.assertEqual(result["verdict"], "ĐÚNG")
-        # 0.5 * 96.7 + 0.5 * 90.0 = 93.4
-        self.assertAlmostEqual(result["score"], 93.4, places=1)
+        # 0.5 * 97.3 + 0.5 * 90.0 = 93.6
+        self.assertAlmostEqual(result["score"], 93.6, places=1)
         self.assertEqual(result["grade"], "Tốt")
 
-    def test_penalty_loi_nhe_thang_diem_70_85(self):
-        # Mô phỏng trường hợp trong thực tế của người dùng: SmallError chiếm ưu thế (84%)
+    def test_cham_chuoc_loi_nhe_do_tin_cay_thap_thang_diem_70_85(self):
+        # Tầng 2: correctness < pass_score (40), error_conf < 0.40, SmallError, correctness >= 30
+        # -> Châm chước chấm là ĐÚNG (Khá/Đạt), lỗi chuyển thành nhắc nhở nhẹ trong warnings
         result = assess(
             probabilities(
                 exercise_error_class=[0.3, 0.3, 0.2, 0.2],
@@ -69,12 +70,48 @@ class TestAssess(unittest.TestCase):
             ),
             quality=None,
         )
-        self.assertEqual(result["verdict"], "SAI")
-        self.assertIsNotNone(result["error"])
-        self.assertEqual(result["error"]["severity"], "SmallError")
+        self.assertEqual(result["verdict"], "ĐÚNG")
+        self.assertTrue(result["passed"])
+        self.assertIsNone(result["error"])
+        self.assertTrue(any("Nhắc nhở nhẹ" in w for w in result["warnings"]))
         self.assertGreaterEqual(result["score"], 70.0)
         self.assertLessEqual(result["score"], 85.0)
         self.assertIn(result["grade"], ("Khá", "Đạt"))
+
+    def test_bat_loi_sai_khi_loi_nhe_nhung_error_conf_cao(self):
+        # Tầng 3: error_conf >= 0.40 rõ ràng -> Vẫn bắt SAI dù là SmallError
+        result = assess(
+            probabilities(
+                exercise_error_class=[0.2, 0.5, 0.15, 0.15],
+                global_evaluation=[0.2, 0.7, 0.05, 0.05],
+                error_type=[0.2, 0.5, 0.1, 0.1, 0.1],
+                severity=[0.85, 0.15],
+                body_part=[0.1, 0.7, 0.1, 0.1],
+            ),
+            quality=None,
+        )
+        self.assertEqual(result["verdict"], "SAI")
+        self.assertFalse(result["passed"])
+        self.assertIsNotNone(result["error"])
+        self.assertEqual(result["error"]["severity"], "SmallError")
+        self.assertGreaterEqual(result["error"]["error_type_confidence"], 0.40)
+
+    def test_bat_loi_sai_khi_do_dung_duoi_30(self):
+        # Tầng 3: correctness < 30.0 -> Bắt SAI dù error_conf thấp
+        result = assess(
+            probabilities(
+                exercise_error_class=[0.1, 0.3, 0.3, 0.3],
+                global_evaluation=[0.1, 0.7, 0.1, 0.1],
+                error_type=[0.1, 0.25, 0.25, 0.25, 0.15],
+                severity=[0.8, 0.2],
+                body_part=[0.1, 0.7, 0.1, 0.1],
+            ),
+            quality=None,
+        )
+        self.assertEqual(result["verdict"], "SAI")
+        self.assertFalse(result["passed"])
+        self.assertLess(result["correctness"], 30.0)
+        self.assertIsNotNone(result["error"])
 
     def test_penalty_loi_nang_thang_diem_30_50(self):
         # Lỗi nặng LargeError chiếm ưu thế (90%)
@@ -94,6 +131,23 @@ class TestAssess(unittest.TestCase):
         self.assertGreaterEqual(result["score"], 30.0)
         self.assertLessEqual(result["score"], 50.0)
         self.assertIn(result["grade"], ("Chưa đạt", "Kém"))
+
+    def test_dong_tac_tren_40_la_dung_thang_diem_90_100(self):
+        # Tầng 1: correctness >= pass_score (40.0) -> ĐÚNG (thang 90-100)
+        # Độ đúng khoảng 45% (vốn bị coi là SAI ở ngưỡng 50 cũ, nay đạt ở ngưỡng 40 mới)
+        result = assess(
+            probabilities(
+                exercise_error_class=[0.35, 0.35, 0.15, 0.15],
+                global_evaluation=[0.35, 0.45, 0.1, 0.1],
+                error_type=[0.35, 0.35, 0.1, 0.1, 0.1],
+            ),
+            quality=None,
+        )
+        self.assertGreaterEqual(result["correctness"], 40.0)
+        self.assertEqual(result["verdict"], "ĐÚNG")
+        self.assertTrue(result["passed"])
+        self.assertIsNone(result["error"])
+        self.assertGreaterEqual(result["score"], 90.0)
 
     def test_quality_cao_khong_lam_lan_tap_sai_thanh_dung(self):
         result = assess(

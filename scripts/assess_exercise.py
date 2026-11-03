@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from rehab_mtl.inference.assessment import (  # noqa: E402
+    DEFAULT_MIN_ERROR_CONFIDENCE,
     DEFAULT_PASS_SCORE,
     assess,
     load_descriptions,
@@ -75,6 +76,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=PROJECT_ROOT / "artifacts" / "Model v7" / "best_model.pt",
     )
     parser.add_argument("--pass-score", type=float, default=DEFAULT_PASS_SCORE)
+    parser.add_argument(
+        "--min-error-confidence",
+        type=float,
+        default=DEFAULT_MIN_ERROR_CONFIDENCE,
+        help="Ngưỡng độ tin cậy lỗi để bắt lỗi SAI khi độ đúng dưới pass-score (mặc định: 0.40)",
+    )
     parser.add_argument(
         "--quality-weight",
         type=float,
@@ -144,6 +151,7 @@ def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, Any]:
         quality if args.quality_weight > 0 else None,
         expected_exercise=args.exercise,
         pass_score=args.pass_score,
+        min_error_confidence=args.min_error_confidence,
         quality_weight=args.quality_weight,
         scoring_mode=args.scoring_mode,
         descriptions=descriptions,

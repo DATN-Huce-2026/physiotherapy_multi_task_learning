@@ -1,9 +1,17 @@
 """Đổi đầu ra của model thành kết quả: đúng/sai, sai ở đâu, điểm 0-100.
 
-- Đúng/sai: trung bình P(đúng) / (P(đúng) + P(lỗi mạnh nhất)) của 3 head có lớp đúng.
+- Đánh giá đúng/sai theo 3 tầng lọc:
+  + Tầng 1: Nếu correctness >= pass_score (mặc định 40.0) -> ĐÚNG (90-100 điểm).
+  + Tầng 2 (Châm chước lỗi nhẹ): Nếu correctness < pass_score nhưng:
+      * error_conf < min_error_confidence (mặc định 0.40 - mô hình không chỉ rõ lỗi nào vượt trội)
+      * mức độ dự đoán chỉ là lỗi nhẹ (SmallError)
+      * correctness >= 30.0
+      -> Châm chước chấm là ĐÚNG (thang điểm Khá/Đạt, 65-85 điểm), đưa mô tả lỗi vào mục warnings (nhắc nhở nhẹ).
+  + Tầng 3 (Bắt lỗi): Nếu lỗi nặng (LargeError), error_conf >= min_error_confidence, hoặc correctness < 30.0
+      -> Phán SAI và gán đầy đủ thông tin lỗi trong error_info.
 - Điểm:
   + Chế độ 'penalty' (mặc định): trừ điểm từ 100 theo mức độ nghiêm trọng
-    (đúng: 90-100, lỗi nhẹ SmallError: 70-85, lỗi nặng LargeError: 30-50,
+    (đúng: 90-100, châm chước lỗi nhẹ: 65-85, lỗi nặng LargeError: 30-50,
     chưa hoàn thành: 35-50, không chuyển động: 5-20).
   + Chế độ 'strict': (1 - quality_weight) × độ đúng + quality_weight × quality.
 """
@@ -12,7 +20,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-
 from typing import Any
 
 import numpy as np
@@ -25,7 +32,9 @@ TASK_LABELS: dict[str, tuple[str, ...]] = {
 }
 CORRECT_HEADS = ("global_evaluation", "exercise_error_class", "error_type")
 ERROR_CODES = ("Error1", "Error2", "Error3", "Other")
-DEFAULT_PASS_SCORE = 50.0
+DEFAULT_PASS_SCORE = 40.0
+DEFAULT_MIN_ERROR_CONFIDENCE = 0.40
+MIN_LENIENT_CORRECTNESS = 30.0
 DEFAULT_QUALITY_WEIGHT = 0.5
 DEFAULT_SCORING_MODE = "penalty"
 VALID_SCORING_MODES = ("penalty", "strict")
@@ -70,12 +79,15 @@ def assess(
     *,
     expected_exercise: str | None = None,
     pass_score: float = DEFAULT_PASS_SCORE,
+    min_error_confidence: float = DEFAULT_MIN_ERROR_CONFIDENCE,
     quality_weight: float = DEFAULT_QUALITY_WEIGHT,
     scoring_mode: str = DEFAULT_SCORING_MODE,
     descriptions: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if not 0 < pass_score < 100:
         raise ValueError("pass_score phải nằm trong (0, 100)")
+    if not 0 <= min_error_confidence <= 1:
+        raise ValueError("min_error_confidence phải nằm trong [0, 1]")
     if not 0 <= quality_weight <= 1:
         raise ValueError("quality_weight phải nằm trong [0, 1]")
     if scoring_mode not in VALID_SCORING_MODES:
@@ -91,7 +103,6 @@ def assess(
         for task in CORRECT_HEADS
     ]
     correctness = 100.0 * float(np.mean(head_correctness))
-    passed = correctness >= pass_score
 
     exercise, exercise_conf = _top("exercise", probs["exercise"])
     if expected_exercise and expected_exercise != exercise:
@@ -106,6 +117,7 @@ def assess(
             "correctness": None,
             "quality": None,
             "pass_score": pass_score,
+            "min_error_confidence": min_error_confidence,
             "scoring_mode": scoring_mode,
             "head_predictions": {
                 task: dict(zip(("label", "confidence"), _top(task, probs[task])))
@@ -126,21 +138,43 @@ def assess(
             f"Model không chắc đây là bài nào (độ tin cậy {exercise_conf:.0%})."
         )
 
-    # Trích xuất thông tin lỗi nếu không passed
-    error_info = None
-    if not passed:
-        eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))
-        err = dict(zip(TASK_LABELS["error_type"], probs["error_type"]))
-        error_probabilities = {
-            code: float(np.mean([eec[code], err[code]])) if code in eec else float(err[code])
-            for code in ERROR_CODES
-        }
-        error_code = max(error_probabilities, key=lambda k: error_probabilities[k])
-        error_conf = error_probabilities[error_code]
-        reason = TASK_LABELS["global_evaluation"][1 + int(np.argmax(probs["global_evaluation"][1:]))]
-        body_part, body_conf = _top("body_part", probs["body_part"])
-        severity, severity_conf = _top("severity", probs["severity"])
-        description = descriptions["errors"].get(exercise, {}).get(error_code, error_code)
+    # Trích xuất thông tin lỗi tiềm năng
+    eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))
+    err = dict(zip(TASK_LABELS["error_type"], probs["error_type"]))
+    error_probabilities = {
+        code: float(np.mean([eec[code], err[code]])) if code in eec else float(err[code])
+        for code in ERROR_CODES
+    }
+    error_code = max(error_probabilities, key=lambda k: error_probabilities[k])
+    error_conf = error_probabilities[error_code]
+    reason = TASK_LABELS["global_evaluation"][1 + int(np.argmax(probs["global_evaluation"][1:]))]
+    body_part, body_conf = _top("body_part", probs["body_part"])
+    severity, severity_conf = _top("severity", probs["severity"])
+    description = descriptions["errors"].get(exercise, {}).get(error_code, error_code)
+
+    # 3 tầng lọc:
+    # Tầng 1: Đạt ngưỡng chuẩn pass_score
+    if correctness >= pass_score:
+        passed = True
+        is_lenient_pass = False
+        error_info = None
+    # Tầng 2: Châm chước nếu lỗi nhẹ, độ tin cậy lỗi thấp (< min_error_confidence) và độ đúng >= 30%
+    elif (
+        error_conf < min_error_confidence
+        and severity == "SmallError"
+        and correctness >= MIN_LENIENT_CORRECTNESS
+        and reason == "Incorrect"
+    ):
+        passed = True
+        is_lenient_pass = True
+        error_info = None
+        warnings.append(
+            f"Nhắc nhở nhẹ: {description} (độ tin cậy lỗi {error_conf:.0%})."
+        )
+    # Tầng 3: Phán SAI (lỗi nặng LargeError, lỗi rõ ràng error_conf >= min_error_confidence, hoặc độ đúng < 30%)
+    else:
+        passed = False
+        is_lenient_pass = False
         error_info = {
             "reason": reason,
             "error_type": error_code,
@@ -160,11 +194,22 @@ def assess(
 
     # Tính điểm phân loại
     if scoring_mode == "penalty":
-        if passed:
+        if passed and not is_lenient_pass:
             norm = max(100.0 - pass_score, 1e-12)
             classification_score = 90.0 + 10.0 * float(
                 np.clip((correctness - pass_score) / norm, 0.0, 1.0)
             )
+        elif is_lenient_pass:
+            # Điểm châm chước: trừ điểm nhẹ theo SmallError để rơi vào thang Khá/Đạt (65-85)
+            p_small = float(probs["severity"][0])
+            p_large = float(probs["severity"][1])
+            sev_sum = max(p_small + p_large, 1e-12)
+            p_small /= sev_sum
+            p_large /= sev_sum
+            penalty_small = 15.0 + 15.0 * float(error_conf)
+            penalty_large = 50.0 + 20.0 * float(error_conf)
+            penalty = p_small * penalty_small + p_large * penalty_large
+            classification_score = float(np.clip(100.0 - penalty, 0.0, 100.0))
         else:
             assert error_info is not None
             p_small = float(probs["severity"][0])
@@ -207,6 +252,7 @@ def assess(
         "correctness": round(correctness, 1),
         "quality": None if quality_score is None else round(quality_score, 1),
         "pass_score": pass_score,
+        "min_error_confidence": min_error_confidence,
         "scoring_mode": scoring_mode,
         "head_predictions": {
             task: dict(zip(("label", "confidence"), _top(task, probs[task])))

@@ -7,15 +7,15 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from rehab_mtl.features.angles import transform_kinect_sequence_to_angles  # [BỔ SUNG MỚI]
+from rehab_mtl.features.angles import NUM_ANGLES, transform_kinect_sequence_to_angles  # [BỔ SUNG MỚI]
 from rehab_mtl.models.shared_backbone import KeraalSharedBackbone
 
 
 def load_model(path: str | Path, *, pooling: str = "mean") -> KeraalSharedBackbone:
-    """Load model checkpoint và tự động nhận diện input_dim (12 góc hoặc 75 tọa độ)."""
+    """Load model checkpoint và tự động nhận diện input_dim (góc hoặc 75 tọa độ)."""
     state = torch.load(Path(path), map_location="cpu", weights_only=True)
     # [BỔ SUNG]: Tự động phát hiện kích thước lớp đầu vào từ trọng số checkpoint
-    in_features = state.get("frame_encoder.0.weight", torch.empty(0, 12)).shape[1] if "frame_encoder.0.weight" in state else 12
+    in_features = state.get("frame_encoder.0.weight", torch.empty(0, NUM_ANGLES)).shape[1] if "frame_encoder.0.weight" in state else NUM_ANGLES
     model = KeraalSharedBackbone(input_dim=in_features, pooling=pooling)
     model.load_state_dict(state)
     model.eval()
@@ -24,19 +24,21 @@ def load_model(path: str | Path, *, pooling: str = "mean") -> KeraalSharedBackbo
 
 @torch.no_grad()
 def _forward(model: KeraalSharedBackbone, sequence: np.ndarray) -> dict[str, torch.Tensor]:
-    """Forward một chuỗi qua mô hình (tự động chuyển sang 12 góc & 90 frames nếu model dùng input_dim=12)."""
+    """Forward một chuỗi qua mô hình (tự động chuyển sang góc & 90 frames nếu model dùng góc)."""
     seq = np.asarray(sequence, dtype=np.float32)
 
-    # [BỔ SUNG / CHỈNH SỬA]: Nếu mô hình học trên 12 góc và đầu vào là chuỗi tọa độ 25 khớp
-    if model.input_dim == 12:
+    # [BỔ SUNG / CHỈNH SỬA]: Nếu mô hình học trên góc (13 hoặc checkpoint cũ 12 góc)
+    if model.input_dim in (NUM_ANGLES, 12):
         if seq.ndim == 3 and seq.shape[1] == 25:
-            # Chuỗi [T, 25, 3] -> Chuyển thành 12 góc và nội suy về 90 frames [90, 12]
-            features = transform_kinect_sequence_to_angles(seq, target_length=90)
-        elif seq.ndim == 2 and seq.shape[1] == 12:
-            features = seq if len(seq) == 90 else transform_kinect_sequence_to_angles(seq, target_length=90)
+            # Chuỗi [T, 25, 3] -> Chuyển thành góc và nội suy về 90 frames
+            features = transform_kinect_sequence_to_angles(seq, target_length=90)[:, :model.input_dim]
+        elif seq.ndim == 2 and seq.shape[1] == model.input_dim:
+            features = seq if len(seq) == 90 else transform_kinect_sequence_to_angles(seq, target_length=90)[:, :model.input_dim]
+        elif seq.ndim == 2 and seq.shape[1] == NUM_ANGLES and model.input_dim == 12:
+            features = seq[:, :12]
         else:
-            raise ValueError(f"Không thể chuyển đổi chuỗi shape {seq.shape} sang 12 góc")
-        tensor_in = torch.from_numpy(features).unsqueeze(0)  # [1, 90, 12]
+            raise ValueError(f"Không thể chuyển đổi chuỗi shape {seq.shape} sang {model.input_dim} góc")
+        tensor_in = torch.from_numpy(features).unsqueeze(0)  # [1, 90, input_dim]
         lengths = torch.tensor([90], dtype=torch.long)
         return model(tensor_in, lengths)
 

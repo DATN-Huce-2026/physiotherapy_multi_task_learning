@@ -1,0 +1,1486 @@
+[
+  {
+    "epoch": 1,
+    "lr": 0.001,
+    "train": {
+      "loss": 1.1356651152919262,
+      "task_losses": {
+        "exercise": 1.1286150962928605,
+        "exercise_error_class": 1.412642471515501,
+        "global_evaluation": 1.1963941842699661,
+        "error_type": 1.5313387530588964,
+        "severity": 0.6716915372539969,
+        "body_part": 1.154518972621875,
+        "quality": 0.19621813084895365
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.162447769963552,
+      "task_losses": {
+        "exercise": 1.068093626913817,
+        "exercise_error_class": 1.3834035963739066,
+        "global_evaluation": 0.812325727572,
+        "error_type": 1.436046948035558,
+        "severity": 0.8030163208643596,
+        "body_part": 0.8160851569402785,
+        "quality": 0.15025611899115823
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.162447769963552,
+    "best_epoch": 1
+  },
+  {
+    "epoch": 2,
+    "lr": 0.001,
+    "train": {
+      "loss": 1.0659982381865036,
+      "task_losses": {
+        "exercise": 1.0906881556484869,
+        "exercise_error_class": 1.3745626389423264,
+        "global_evaluation": 1.1043892082495568,
+        "error_type": 1.4609800552764134,
+        "severity": 0.6459571351023281,
+        "body_part": 1.0166859975021876,
+        "quality": 0.13710979030415346
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.1380949713408002,
+      "task_losses": {
+        "exercise": 1.0153989107712456,
+        "exercise_error_class": 1.371391782151445,
+        "global_evaluation": 0.824910467154129,
+        "error_type": 1.3858444063287032,
+        "severity": 0.9711370031038921,
+        "body_part": 0.6962884437470209,
+        "quality": 0.13742949982935732
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.1380949713408002,
+    "best_epoch": 2
+  },
+  {
+    "epoch": 3,
+    "lr": 0.001,
+    "train": {
+      "loss": 1.057336779527886,
+      "task_losses": {
+        "exercise": 1.005656150520825,
+        "exercise_error_class": 1.3680961336302238,
+        "global_evaluation": 1.0978776751420436,
+        "error_type": 1.429774178050415,
+        "severity": 0.6780187687453102,
+        "body_part": 1.0187114440323262,
+        "quality": 0.13719029583593953
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.1252284239208887,
+      "task_losses": {
+        "exercise": 0.8935489473135575,
+        "exercise_error_class": 1.3528624337150137,
+        "global_evaluation": 0.891527420098561,
+        "error_type": 1.3756331466791922,
+        "severity": 0.8488194863001506,
+        "body_part": 0.5829396744569143,
+        "quality": 0.14114041965116153
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.1252284239208887,
+    "best_epoch": 3
+  },
+  {
+    "epoch": 4,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.9908460121578192,
+      "task_losses": {
+        "exercise": 0.8398634289783207,
+        "exercise_error_class": 1.3209545590053096,
+        "global_evaluation": 1.0851324433699632,
+        "error_type": 1.379326009262375,
+        "severity": 0.6104291547747219,
+        "body_part": 0.793611628620812,
+        "quality": 0.12907065964242984
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0814538108451026,
+      "task_losses": {
+        "exercise": 0.622811464123104,
+        "exercise_error_class": 1.3396839591375007,
+        "global_evaluation": 0.8702268939186298,
+        "error_type": 1.3736453351744435,
+        "severity": 0.6790049443642299,
+        "body_part": 0.24121808934779393,
+        "quality": 0.13019635866988788
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.0814538108451026,
+    "best_epoch": 4
+  },
+  {
+    "epoch": 5,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.9463746819889318,
+      "task_losses": {
+        "exercise": 0.6753641048578617,
+        "exercise_error_class": 1.298599141037724,
+        "global_evaluation": 1.0295088795515208,
+        "error_type": 1.357301792554688,
+        "severity": 0.6505206449066891,
+        "body_part": 0.5591430811399825,
+        "quality": 0.11608369682401976
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0617666897319613,
+      "task_losses": {
+        "exercise": 0.529605059520058,
+        "exercise_error_class": 1.34874032194919,
+        "global_evaluation": 0.8442697795477208,
+        "error_type": 1.3787822961284404,
+        "severity": 0.7515603999296824,
+        "body_part": 0.1328772654136022,
+        "quality": 0.12068925594741647
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.0617666897319613,
+    "best_epoch": 5
+  },
+  {
+    "epoch": 6,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.9282778125988757,
+      "task_losses": {
+        "exercise": 0.5721376149055085,
+        "exercise_error_class": 1.2785921347475497,
+        "global_evaluation": 1.0518957237020516,
+        "error_type": 1.3587691114659894,
+        "severity": 0.57896157546955,
+        "body_part": 0.5039891439040055,
+        "quality": 0.12182235264297679
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0639352003733318,
+      "task_losses": {
+        "exercise": 0.4552147821239803,
+        "exercise_error_class": 1.3564663870744242,
+        "global_evaluation": 0.860940238977844,
+        "error_type": 1.3889663373691994,
+        "severity": 0.6705306013425191,
+        "body_part": 0.12104332411573046,
+        "quality": 0.12106453322551468
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 1.0617666897319613,
+    "best_epoch": 5
+  },
+  {
+    "epoch": 7,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.910698424560071,
+      "task_losses": {
+        "exercise": 0.49867454806312184,
+        "exercise_error_class": 1.2898410146481523,
+        "global_evaluation": 1.0381106480191915,
+        "error_type": 1.3183943308584871,
+        "severity": 0.6171228457023116,
+        "body_part": 0.462588028082352,
+        "quality": 0.1107343862999544
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0385234519129707,
+      "task_losses": {
+        "exercise": 0.40445551120716594,
+        "exercise_error_class": 1.3428113775631405,
+        "global_evaluation": 0.8382788035312938,
+        "error_type": 1.3702441171595925,
+        "severity": 0.5880260765552521,
+        "body_part": 0.106227036742937,
+        "quality": 0.1098039373755455
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.0385234519129707,
+    "best_epoch": 7
+  },
+  {
+    "epoch": 8,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8895005025520889,
+      "task_losses": {
+        "exercise": 0.42187601266825786,
+        "exercise_error_class": 1.2723041921389808,
+        "global_evaluation": 1.015060544396058,
+        "error_type": 1.3318877446721171,
+        "severity": 0.563481185103164,
+        "body_part": 0.5217770973450682,
+        "quality": 0.09947618909036549
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0376462293049646,
+      "task_losses": {
+        "exercise": 0.3420365543469139,
+        "exercise_error_class": 1.3369552965731348,
+        "global_evaluation": 0.8583513477300232,
+        "error_type": 1.3749207483049024,
+        "severity": 0.7029044409592946,
+        "body_part": 0.08928467191400982,
+        "quality": 0.09818899699232796
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.0376462293049646,
+    "best_epoch": 8
+  },
+  {
+    "epoch": 9,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8858779409219044,
+      "task_losses": {
+        "exercise": 0.3528535773601037,
+        "exercise_error_class": 1.2791221429625776,
+        "global_evaluation": 0.9930967461222258,
+        "error_type": 1.3033278762248524,
+        "severity": 0.5544660806655883,
+        "body_part": 0.45209656772988566,
+        "quality": 0.1008244331634525
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.029009653462304,
+      "task_losses": {
+        "exercise": 0.254817287494307,
+        "exercise_error_class": 1.3452367239061431,
+        "global_evaluation": 0.850024111995613,
+        "error_type": 1.375418992157568,
+        "severity": 0.6453376392523448,
+        "body_part": 0.08116375069533076,
+        "quality": 0.09272504056041891
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 1.029009653462304,
+    "best_epoch": 9
+  },
+  {
+    "epoch": 10,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8755374077006576,
+      "task_losses": {
+        "exercise": 0.28586212944626155,
+        "exercise_error_class": 1.2701224827692146,
+        "global_evaluation": 1.0205656769566047,
+        "error_type": 1.304474689458546,
+        "severity": 0.6055768904440543,
+        "body_part": 0.37634850360369415,
+        "quality": 0.0992483924552102
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.981162746274282,
+      "task_losses": {
+        "exercise": 0.1893770568072796,
+        "exercise_error_class": 1.308002029484064,
+        "global_evaluation": 0.7815655687832097,
+        "error_type": 1.3429321670218517,
+        "severity": 0.6528214404980341,
+        "body_part": 0.07437222947676976,
+        "quality": 0.094048545780507
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.981162746274282,
+    "best_epoch": 10
+  },
+  {
+    "epoch": 11,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.837440942861061,
+      "task_losses": {
+        "exercise": 0.19841008690374146,
+        "exercise_error_class": 1.2369461527494627,
+        "global_evaluation": 1.0065259715685477,
+        "error_type": 1.277941967485941,
+        "severity": 0.5748290544047076,
+        "body_part": 0.4783118275946446,
+        "quality": 0.10011919738428894
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9856754004482239,
+      "task_losses": {
+        "exercise": 0.17108731399006818,
+        "exercise_error_class": 1.3012020580043877,
+        "global_evaluation": 0.826258816645534,
+        "error_type": 1.3377367375712645,
+        "severity": 0.7309275577465694,
+        "body_part": 0.07317350893503144,
+        "quality": 0.0946060832251202
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.981162746274282,
+    "best_epoch": 10
+  },
+  {
+    "epoch": 12,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8563848876297852,
+      "task_losses": {
+        "exercise": 0.15513525110328458,
+        "exercise_error_class": 1.2412446261937744,
+        "global_evaluation": 0.9642307206224172,
+        "error_type": 1.281142066445267,
+        "severity": 0.5840019385604297,
+        "body_part": 0.4715569011783332,
+        "quality": 0.10573632088019443
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9771908863432823,
+      "task_losses": {
+        "exercise": 0.11345917545663922,
+        "exercise_error_class": 1.2934204993794143,
+        "global_evaluation": 0.8607920791609172,
+        "error_type": 1.324859216286425,
+        "severity": 0.6208397269248962,
+        "body_part": 0.06692323478914443,
+        "quality": 0.0932148430835117
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9771908863432823,
+    "best_epoch": 12
+  },
+  {
+    "epoch": 13,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8190423489625056,
+      "task_losses": {
+        "exercise": 0.11116712045718412,
+        "exercise_error_class": 1.1946361094620368,
+        "global_evaluation": 0.9211723924829409,
+        "error_type": 1.2540859057192217,
+        "severity": 0.5937129330109148,
+        "body_part": 0.5077693320057365,
+        "quality": 0.10553681916909763
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9499217692821745,
+      "task_losses": {
+        "exercise": 0.16628368229645749,
+        "exercise_error_class": 1.2848407888727567,
+        "global_evaluation": 0.7239570628178802,
+        "error_type": 1.2913388863467334,
+        "severity": 0.8554159462451935,
+        "body_part": 0.0666468155880769,
+        "quality": 0.10035779801282016
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9499217692821745,
+    "best_epoch": 13
+  },
+  {
+    "epoch": 14,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.8134174052050955,
+      "task_losses": {
+        "exercise": 0.13852054771300548,
+        "exercise_error_class": 1.2039009993692795,
+        "global_evaluation": 0.9321259168478159,
+        "error_type": 1.2324385484408218,
+        "severity": 0.6149199396371842,
+        "body_part": 0.43709007365984864,
+        "quality": 0.11247739543546444
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9494310962775397,
+      "task_losses": {
+        "exercise": 0.11339746353256962,
+        "exercise_error_class": 1.267997912110736,
+        "global_evaluation": 0.8050696939098677,
+        "error_type": 1.2907803348804776,
+        "severity": 0.6559535165627798,
+        "body_part": 0.06532580831221171,
+        "quality": 0.09611136567863551
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9494310962775397,
+    "best_epoch": 14
+  },
+  {
+    "epoch": 15,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.7791093923072734,
+      "task_losses": {
+        "exercise": 0.09678826212903352,
+        "exercise_error_class": 1.1526506877391138,
+        "global_evaluation": 0.8605445852646461,
+        "error_type": 1.172019292388046,
+        "severity": 0.5749654785675161,
+        "body_part": 0.512162100691139,
+        "quality": 0.10480430440228676
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9551764207463416,
+      "task_losses": {
+        "exercise": 0.10693849238121639,
+        "exercise_error_class": 1.2528197061647928,
+        "global_evaluation": 0.8613561092494343,
+        "error_type": 1.2772544883845145,
+        "severity": 0.7430963387091954,
+        "body_part": 0.07372304264988218,
+        "quality": 0.09881496226245706
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9494310962775397,
+    "best_epoch": 14
+  },
+  {
+    "epoch": 16,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.7538175223745704,
+      "task_losses": {
+        "exercise": 0.08601008412616501,
+        "exercise_error_class": 1.1066705638374494,
+        "global_evaluation": 0.8935635542640319,
+        "error_type": 1.1735463161566104,
+        "severity": 0.5460392744225614,
+        "body_part": 0.4914965108246281,
+        "quality": 0.10220863742353482
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9292389898309632,
+      "task_losses": {
+        "exercise": 0.176658729026499,
+        "exercise_error_class": 1.2134385174591635,
+        "global_evaluation": 0.8296886110095726,
+        "error_type": 1.232870195779884,
+        "severity": 0.7239686836798985,
+        "body_part": 0.07312373107387907,
+        "quality": 0.09889050640843132
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9292389898309632,
+    "best_epoch": 16
+  },
+  {
+    "epoch": 17,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.7444489876765278,
+      "task_losses": {
+        "exercise": 0.11456716950992987,
+        "exercise_error_class": 1.054475237647321,
+        "global_evaluation": 0.8767044179332562,
+        "error_type": 1.1285625466129237,
+        "severity": 0.5606667883255902,
+        "body_part": 0.4836021691058459,
+        "quality": 0.10060945467884157
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9107693329689994,
+      "task_losses": {
+        "exercise": 0.12890191952009564,
+        "exercise_error_class": 1.19641010889923,
+        "global_evaluation": 0.8297805402772542,
+        "error_type": 1.2122232942727573,
+        "severity": 0.6739753097295761,
+        "body_part": 0.059861818771986736,
+        "quality": 0.10000924427400935
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9107693329689994,
+    "best_epoch": 17
+  },
+  {
+    "epoch": 18,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.7003347961897578,
+      "task_losses": {
+        "exercise": 0.11365333366935533,
+        "exercise_error_class": 1.0246552807334055,
+        "global_evaluation": 0.8235232879718145,
+        "error_type": 1.0707289834468685,
+        "severity": 0.5345160211710369,
+        "body_part": 0.4255827193389113,
+        "quality": 0.09863280018717573
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9050115105651674,
+      "task_losses": {
+        "exercise": 0.12114794466077633,
+        "exercise_error_class": 1.192739268231497,
+        "global_evaluation": 0.812333364318646,
+        "error_type": 1.2064181234230076,
+        "severity": 0.6893220384915669,
+        "body_part": 0.05523385604222616,
+        "quality": 0.10277579182928259
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": true,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 19,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.7021404129254137,
+      "task_losses": {
+        "exercise": 0.09446876389457962,
+        "exercise_error_class": 0.9740266034907641,
+        "global_evaluation": 0.8300334610618078,
+        "error_type": 1.0304021044084204,
+        "severity": 0.5454676286262624,
+        "body_part": 0.4341603082426813,
+        "quality": 0.1122177608885637
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9742885583213398,
+      "task_losses": {
+        "exercise": 0.3610807574475589,
+        "exercise_error_class": 1.2820234453625616,
+        "global_evaluation": 0.8098763106678026,
+        "error_type": 1.2916577759019114,
+        "severity": 0.7486966451009115,
+        "body_part": 0.0737236486304374,
+        "quality": 0.11177001893520355
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 20,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.6774871884894421,
+      "task_losses": {
+        "exercise": 0.1402018859656782,
+        "exercise_error_class": 0.917043004080514,
+        "global_evaluation": 0.8276875322827926,
+        "error_type": 1.010609322646905,
+        "severity": 0.548893248684266,
+        "body_part": 0.47208087767861534,
+        "quality": 0.09675119357688405
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 0.9946341103031522,
+      "task_losses": {
+        "exercise": 0.2290184307600493,
+        "exercise_error_class": 1.2897940023355021,
+        "global_evaluation": 0.895637804191018,
+        "error_type": 1.3133926694853264,
+        "severity": 0.6361006816228231,
+        "body_part": 0.05868917845544361,
+        "quality": 0.10213126716288654
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 21,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.6600788499033728,
+      "task_losses": {
+        "exercise": 0.14476084544786502,
+        "exercise_error_class": 0.8943782373566493,
+        "global_evaluation": 0.7626086548925974,
+        "error_type": 0.9796503698616698,
+        "severity": 0.545919488808688,
+        "body_part": 0.44512376643382434,
+        "quality": 0.09643558531599207
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.019267094750253,
+      "task_losses": {
+        "exercise": 0.3189937833372665,
+        "exercise_error_class": 1.3260332485127555,
+        "global_evaluation": 0.8753353147254641,
+        "error_type": 1.340541253748693,
+        "severity": 0.7258650600910187,
+        "body_part": 0.07083087361284665,
+        "quality": 0.11883899840441617
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 22,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.6349156469925765,
+      "task_losses": {
+        "exercise": 0.13709257045363793,
+        "exercise_error_class": 0.8693386383145769,
+        "global_evaluation": 0.7747919346468571,
+        "error_type": 0.9375604622893863,
+        "severity": 0.5171271322404637,
+        "body_part": 0.3935941608852885,
+        "quality": 0.10828626116848698
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0765054651669093,
+      "task_losses": {
+        "exercise": 0.37631735191073107,
+        "exercise_error_class": 1.3909115631149729,
+        "global_evaluation": 0.9905529452840662,
+        "error_type": 1.3869647093509372,
+        "severity": 0.7960614919662475,
+        "body_part": 0.17494595512038186,
+        "quality": 0.11234035410664299
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 23,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.639054332550686,
+      "task_losses": {
+        "exercise": 0.14754315413778923,
+        "exercise_error_class": 0.8554878321206458,
+        "global_evaluation": 0.7398129515349865,
+        "error_type": 0.9127041033485479,
+        "severity": 0.5770207394571866,
+        "body_part": 0.4589366704811541,
+        "quality": 0.11352019909188309
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0654898820415375,
+      "task_losses": {
+        "exercise": 0.4001004189759007,
+        "exercise_error_class": 1.3617946051290908,
+        "global_evaluation": 0.967939342696236,
+        "error_type": 1.37636614237961,
+        "severity": 0.6741080701351165,
+        "body_part": 0.10603416711091995,
+        "quality": 0.10910129208456386
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 24,
+    "lr": 0.001,
+    "train": {
+      "loss": 0.6055978938590648,
+      "task_losses": {
+        "exercise": 0.17603392972320805,
+        "exercise_error_class": 0.8363384674085634,
+        "global_evaluation": 0.71639578942305,
+        "error_type": 0.8877954817654794,
+        "severity": 0.5702690827495912,
+        "body_part": 0.35441086378492664,
+        "quality": 0.11582014735716036
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.3875401512024894,
+      "task_losses": {
+        "exercise": 1.232763217074756,
+        "exercise_error_class": 1.6866611355201788,
+        "global_evaluation": 1.0862290591395374,
+        "error_type": 1.675092755702504,
+        "severity": 0.6964804391066234,
+        "body_part": 0.11997635733513605,
+        "quality": 0.10720142518932169
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 25,
+    "lr": 0.0005,
+    "train": {
+      "loss": 0.6054492773011674,
+      "task_losses": {
+        "exercise": 0.20380822111104355,
+        "exercise_error_class": 0.8128482526707872,
+        "global_evaluation": 0.7334020802607903,
+        "error_type": 0.8479256819911868,
+        "severity": 0.5928125362185871,
+        "body_part": 0.40053313920337164,
+        "quality": 0.10360337287257208
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0655961235364277,
+      "task_losses": {
+        "exercise": 0.1191949253567778,
+        "exercise_error_class": 1.3500421422693698,
+        "global_evaluation": 1.106859594189648,
+        "error_type": 1.3759896851945341,
+        "severity": 0.584799071153005,
+        "body_part": 0.07525775013934999,
+        "quality": 0.09853706000880762
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 26,
+    "lr": 0.0005,
+    "train": {
+      "loss": 0.613955897710288,
+      "task_losses": {
+        "exercise": 0.14499467820478756,
+        "exercise_error_class": 0.8273611013948732,
+        "global_evaluation": 0.7404920923977326,
+        "error_type": 0.853060287080313,
+        "severity": 0.565889998656862,
+        "body_part": 0.4312938176346629,
+        "quality": 0.10813627282383843
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.0267117669185002,
+      "task_losses": {
+        "exercise": 0.21375669534925534,
+        "exercise_error_class": 1.3184614992876935,
+        "global_evaluation": 0.9568256790942558,
+        "error_type": 1.3334568378172422,
+        "severity": 0.7072376509507498,
+        "body_part": 0.09857630321667307,
+        "quality": 0.09682950614528223
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 27,
+    "lr": 0.0005,
+    "train": {
+      "loss": 0.5453450265192834,
+      "task_losses": {
+        "exercise": 0.1746849656878599,
+        "exercise_error_class": 0.6884702002148019,
+        "global_evaluation": 0.7101353072585204,
+        "error_type": 0.7409377227924023,
+        "severity": 0.5837918875848546,
+        "body_part": 0.43774860067648835,
+        "quality": 0.10330540329983859
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.201843101826925,
+      "task_losses": {
+        "exercise": 0.48411265360191463,
+        "exercise_error_class": 1.5628347557021658,
+        "global_evaluation": 1.030699829698134,
+        "error_type": 1.551519812983379,
+        "severity": 0.7207851688067118,
+        "body_part": 0.11426521731274468,
+        "quality": 0.10062165084210309
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  },
+  {
+    "epoch": 28,
+    "lr": 0.0005,
+    "train": {
+      "loss": 0.5675959865588215,
+      "task_losses": {
+        "exercise": 0.15639417366089065,
+        "exercise_error_class": 0.7495110193702662,
+        "global_evaluation": 0.6549651977152396,
+        "error_type": 0.7906206163049442,
+        "severity": 0.5487349024590324,
+        "body_part": 0.3323297201749984,
+        "quality": 0.10377819742863878
+      },
+      "task_target_counts": {
+        "exercise": 366,
+        "exercise_error_class": 321,
+        "global_evaluation": 312,
+        "error_type": 342,
+        "severity": 85,
+        "body_part": 89,
+        "quality": 107
+      },
+      "batch_count": 30,
+      "sample_count": 473
+    },
+    "validation": {
+      "loss": 1.1242225775643,
+      "task_losses": {
+        "exercise": 0.29569061973597854,
+        "exercise_error_class": 1.4386490000502128,
+        "global_evaluation": 1.039785308459782,
+        "error_type": 1.451430498507985,
+        "severity": 0.7244407216707865,
+        "body_part": 0.07722093484231404,
+        "quality": 0.09615958549759605
+      },
+      "task_target_counts": {
+        "exercise": 230,
+        "exercise_error_class": 227,
+        "global_evaluation": 227,
+        "error_type": 228,
+        "severity": 15,
+        "body_part": 21,
+        "quality": 22
+      },
+      "batch_count": 16,
+      "sample_count": 252
+    },
+    "is_best": false,
+    "best_val_loss": 0.9050115105651674,
+    "best_epoch": 18
+  }
+]

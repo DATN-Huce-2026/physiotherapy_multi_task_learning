@@ -249,12 +249,12 @@ def parse_args() -> argparse.Namespace:
         default=True,
         help="Apply skeleton data augmentation (random Y-rotation, jitter, scaling) to train batches. (default: True, use --no-augment to disable)",
     )
-    # [BỔ SUNG MỚI]: Tham số cấu hình trích xuất 12 góc và cố định 90 frames
+    # [BỔ SUNG MỚI]: Tham số cấu hình trích xuất góc và cố định 90 frames
     parser.add_argument(
         "--input-dim",
         type=int,
-        default=12,
-        help="Input feature dimension per frame (default: 12 joint angles)",
+        default=13,
+        help="Input feature dimension per frame (default: 13 joint angles)",
     )
     parser.add_argument(
         "--target-length",

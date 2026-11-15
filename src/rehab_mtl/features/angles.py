@@ -35,7 +35,7 @@ ANKLE_RIGHT = 18
 FOOT_RIGHT = 19
 SPINE_SHOULDER = 20
 
-# Danh sách tên 12 góc giải phẫu
+# Danh sách tên 13 góc giải phẫu
 ANGLE_NAMES = (
     "left_elbow",      # 1. Khuỷu tay trái
     "right_elbow",     # 2. Khuỷu tay phải
@@ -48,8 +48,22 @@ ANGLE_NAMES = (
     "left_ankle",      # 9. Cổ chân trái
     "right_ankle",     # 10. Cổ chân phải
     "spine_flexion",   # 11. Gập/duỗi cột sống
-    "trunk_tilt",      # 12. Nghiêng thân mình (Lateral trunk tilt)
+    "trunk_tilt",      # 12. Nghiêng thân mình so với phương thẳng đứng Y (đối xứng trái/phải)
+    "torso_twist",     # 13. Xoay thân mình (góc giữa trục vai và trục hông trên mặt phẳng XZ)
 )
+NUM_ANGLES = len(ANGLE_NAMES)
+
+
+def _vector_angle_3d(u: np.ndarray, v: np.ndarray) -> float:
+    """Tính góc 3D giữa hai vector u và v trong khoảng [0, pi] (radian)."""
+    norm_u = float(np.linalg.norm(u))
+    norm_v = float(np.linalg.norm(v))
+    if norm_u < 1e-6 or norm_v < 1e-6:
+        return 0.0
+
+    cosine = float(np.dot(u, v) / (norm_u * norm_v))
+    cosine = max(-1.0, min(1.0, cosine))
+    return float(np.arccos(cosine))
 
 
 def calculate_angle_3d(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
@@ -58,31 +72,36 @@ def calculate_angle_3d(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
     Công thức: theta = arccos((ba . bc) / (|ba| * |bc|))
     Giá trị trả về nằm trong khoảng [0, pi] (radian).
     """
-    ba = a - b
-    bc = c - b
-
-    norm_ba = float(np.linalg.norm(ba))
-    norm_bc = float(np.linalg.norm(bc))
-
-    # Xử lý trường hợp suy biến khi hai khớp trùng nhau
-    if norm_ba < 1e-6 or norm_bc < 1e-6:
-        return 0.0
-
-    cosine = float(np.dot(ba, bc) / (norm_ba * norm_bc))
-    # Chặn trong [-1.0, 1.0] để tránh lỗi số học ngoài miền của arccos do sai số float
-    cosine = max(-1.0, min(1.0, cosine))
-    return float(np.arccos(cosine))
+    return _vector_angle_3d(a - b, c - b)
 
 
 def extract_angles_from_kinect_frame(frame: np.ndarray) -> np.ndarray:
-    """[BỔ SUNG]: Chuyển 1 frame tọa độ Kinect sang vector 12 góc sinh cơ học.
+    """[BỔ SUNG]: Chuyển 1 frame tọa độ Kinect sang vector 13 góc sinh cơ học.
 
     Tham số:
         frame: Mảng shape [25, 3] hoặc [75] chứa tọa độ XYZ của 25 khớp Kinect.
     Trả về:
-        Mảng numpy shape [12] kiểu float32 chứa 12 góc lâm sàng.
+        Mảng numpy shape [13] kiểu float32 chứa 13 góc lâm sàng.
     """
     joints = np.asarray(frame, dtype=np.float32).reshape(25, 3)
+    vertical_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+    spine_vec = joints[SPINE_SHOULDER] - joints[SPINE_BASE]
+    shoulder_xz = np.array(
+        [
+            joints[SHOULDER_RIGHT, 0] - joints[SHOULDER_LEFT, 0],
+            0.0,
+            joints[SHOULDER_RIGHT, 2] - joints[SHOULDER_LEFT, 2],
+        ],
+        dtype=np.float32,
+    )
+    hip_xz = np.array(
+        [
+            joints[HIP_RIGHT, 0] - joints[HIP_LEFT, 0],
+            0.0,
+            joints[HIP_RIGHT, 2] - joints[HIP_LEFT, 2],
+        ],
+        dtype=np.float32,
+    )
 
     angles = [
         # 1. Khuỷu tay trái: ShoulderLeft(4) - ElbowLeft(5) - WristLeft(6)
@@ -107,8 +126,10 @@ def extract_angles_from_kinect_frame(frame: np.ndarray) -> np.ndarray:
         calculate_angle_3d(joints[KNEE_RIGHT], joints[ANKLE_RIGHT], joints[FOOT_RIGHT]),
         # 11. Gập/duỗi cột sống: SpineBase(0) - SpineMid(1) - SpineShoulder(20)
         calculate_angle_3d(joints[SPINE_BASE], joints[SPINE_MID], joints[SPINE_SHOULDER]),
-        # 12. Nghiêng thân mình: Góc giữa trục thân (SpineBase -> SpineShoulder) và trục hông (HipLeft -> HipRight)
-        calculate_angle_3d(joints[SPINE_SHOULDER], joints[SPINE_BASE], joints[HIP_LEFT]),
+        # 12. Nghiêng thân mình: Góc giữa trục thân (SpineBase -> SpineShoulder) và phương thẳng đứng Y
+        _vector_angle_3d(spine_vec, vertical_up),
+        # 13. Xoay thân mình: Góc giữa trục vai và trục hông chiếu lên mặt phẳng ngang XZ
+        _vector_angle_3d(shoulder_xz, hip_xz),
     ]
     return np.array(angles, dtype=np.float32)
 

@@ -31,7 +31,7 @@ from rehab_mtl.inference.assessment import (  # noqa: E402
     assess,
     load_descriptions,
 )
-from rehab_mtl.features.angles import transform_kinect_sequence_to_angles  # noqa: E402
+from rehab_mtl.features.angles import NUM_ANGLES, transform_kinect_sequence_to_angles  # noqa: E402
 from rehab_mtl.inference.attempt_detector import AutoAttemptDetector  # noqa: E402
 from rehab_mtl.inference.mediapipe_to_kinect import (  # noqa: E402
     DEFAULT_CAMERA_PITCH_DEG,
@@ -73,7 +73,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         type=Path,
-        default=PROJECT_ROOT / "artifacts" / "Model v7" / "best_model.pt",
+        default=PROJECT_ROOT / "artifacts" / "Model v8" / "best_model.pt",
     )
     parser.add_argument("--pass-score", type=float, default=DEFAULT_PASS_SCORE)
     parser.add_argument(
@@ -124,15 +124,15 @@ def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, Any]:
         )
         return attempt
     try:
-        if model.input_dim == 12:
-            # Cùng thứ tự với Dataset lúc train: XYZ -> 12 góc -> 90 frame.
+        if model.input_dim in (NUM_ANGLES, 12):
+            # Cùng thứ tự với Dataset lúc train: XYZ -> góc -> 90 frame.
             # Chỉ nội suy XYZ để lấp frame mất, không lấy mẫu lại ở 10/30 FPS.
             xyz = recorder.sequence_for_angles(
                 max_gap_seconds=MAX_INTERPOLATION_GAP_SECONDS
             )
             xyz = xyz - xyz[0, 0].copy()
-            features = transform_kinect_sequence_to_angles(xyz, target_length=90)
-            if features.shape != (90, 12) or not np.isfinite(features).all():
+            features = transform_kinect_sequence_to_angles(xyz, target_length=90)[:, :model.input_dim]
+            if features.shape != (90, model.input_dim) or not np.isfinite(features).all():
                 raise ValueError("Chuỗi góc đầu vào không hợp lệ")
             probabilities, quality = predict(model, features)
         elif model.input_dim == 75:
@@ -141,7 +141,7 @@ def evaluate_attempt(recorder, model, args, descriptions) -> dict[str, Any]:
             kimore_sequence = recorder.sequence(KIMORE_FPS)
             probabilities, quality = predict(model, keraal_sequence, kimore_sequence)
         else:
-            raise ValueError(f"Checkpoint có input_dim={model.input_dim}, cần 12 hoặc 75")
+            raise ValueError(f"Checkpoint có input_dim={model.input_dim}, cần {NUM_ANGLES}, 12 hoặc 75")
     except ValueError as error:
         attempt["skipped"] = str(error)
         return attempt

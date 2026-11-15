@@ -14,6 +14,7 @@ from rehab_mtl.datasets.label_maps import (
     GLOBAL_EVALUATION_TO_ID,
     SEVERITY_TO_ID,
 )
+from rehab_mtl.features.angles import NUM_ANGLES
 
 
 TASK_MAPPINGS = {
@@ -40,7 +41,7 @@ class KeraalSharedBackbone(nn.Module):
     def __init__(
         self,
         *,
-        input_dim: int = 12,  # [BỔ SUNG MỚI]: Tham số input_dim=12 cho 12 góc lâm sàng (thay thế 75 tọa độ)
+        input_dim: int = NUM_ANGLES,  # [BỔ SUNG MỚI]: Tham số input_dim cho góc lâm sàng (thay thế 75 tọa độ)
         num_joints: int | None = None,  # [TÙY CHỌN]: Giữ tương thích ngược với mô hình cũ
         coordinates_per_joint: int | None = None,
         frame_embedding_size: int = 64,

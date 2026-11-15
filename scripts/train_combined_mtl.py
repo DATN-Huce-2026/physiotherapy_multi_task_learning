@@ -22,6 +22,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from rehab_mtl.datasets.keraal_dataset import KeraalMTLDataset, collate_keraal_mtl  # noqa: E402
 from rehab_mtl.datasets.kimore_dataset import KimoreMTLDataset  # noqa: E402
 from rehab_mtl.datasets.label_maps import TASK_MAPPINGS  # noqa: E402
+from rehab_mtl.features.angles import NUM_ANGLES  # noqa: E402
 from rehab_mtl.models.shared_backbone import KeraalSharedBackbone  # noqa: E402
 from rehab_mtl.training.engine import evaluate, fit  # noqa: E402
 
@@ -34,10 +35,10 @@ if sys.platform == "win32" and isinstance(sys.stdout, io.TextIOWrapper):
 # Default weights balancing classification tasks (KERAAL) and quality regression (KiMoRe)
 # [CHỈNH SỬA / BỔ SUNG]: Tăng trọng số các task phát hiện lỗi và giảm nhẹ các task dễ (đã >94%)
 DEFAULT_TASK_WEIGHTS: dict[str, float] = {
-    "exercise": 0.8,              # Giảm nhẹ vì task phân loại bài tập đã đạt 93.9%
-    "exercise_error_class": 1.8,  # Tăng trọng số tập trung vào 4 lớp lỗi bài tập
+    "exercise": 1.5,              
+    "exercise_error_class": 1.2,  
     "global_evaluation": 1.2,     # Đánh giá tổng quát
-    "error_type": 1.8,            # Tăng trọng số phân loại loại lỗi cụ thể
+    "error_type": 1.2,            
     "severity": 0.8,              # Mức độ nghiêm trọng
     "body_part": 0.5,             # Bộ phận cơ thể (đã đạt 96.8%)
     "quality": 1.0,               # Hồi quy chất lượng vận động KiMoRe
@@ -264,12 +265,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Preload datasets into memory for maximum training speed",
     )
-    # [BỔ SUNG MỚI]: Cấu hình 12 góc và cố định 90 frames cho Joint MTL
+    # [BỔ SUNG MỚI]: Cấu hình góc lâm sàng và cố định 90 frames cho Joint MTL
     parser.add_argument(
         "--input-dim",
         type=int,
-        default=12,
-        help="Input feature dimension per frame (default: 12 joint angles)",
+        default=NUM_ANGLES,
+        help=f"Input feature dimension per frame (default: {NUM_ANGLES} joint angles)",
     )
     parser.add_argument(
         "--target-length",

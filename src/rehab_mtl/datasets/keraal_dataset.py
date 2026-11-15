@@ -41,6 +41,17 @@ def _read_csv_by_sample_id(path: Path) -> dict[str, dict[str, str]]:
     return result
 
 
+def _has_blazepose_landmarks(path: Path) -> bool:
+    """Fast check whether a BlazePose JSON file exists and contains landmark data."""
+    try:
+        if not path.is_file() or path.stat().st_size < 64:
+            return False
+        with path.open("rb") as handle:
+            return b'"Nose"' in handle.read()
+    except OSError:
+        return False
+
+
 class KeraalMTLDataset(Dataset[dict[str, Any]]):
     """PyTorch Dataset for multi-task learning with KERAAL skeleton sequences.
 
@@ -122,25 +133,47 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
             ]
 
         self.entries: list[tuple[str, str]] = []
+        skipped_blazepose = 0
         for sample_id in base_sample_ids:
             if self.skeleton_source in {"kinect", "both"}:
                 self.entries.append((sample_id, "kinect"))
             if self.skeleton_source in {"blazepose", "both"}:
                 blazepose_rel = (self.manifest_rows[sample_id].get("blazepose_path") or "").strip()
-                if blazepose_rel and (self.keraal_root / blazepose_rel).is_file():
-                    self.entries.append((sample_id, "blazepose"))
-
-        if self.skeleton_source == "blazepose" and not self.entries:
-            raise FileNotFoundError(
-                f"No BlazePose JSON files found under {self.keraal_root} "
-                f"for split={self.split!r}"
-            )
+                blazepose_file = self.keraal_root / blazepose_rel if blazepose_rel else None
+                if blazepose_file is not None and blazepose_file.is_file():
+                    if _has_blazepose_landmarks(blazepose_file):
+                        self.entries.append((sample_id, "blazepose"))
+                    else:
+                        skipped_blazepose += 1
 
         self.sample_ids = [sample_id for sample_id, _ in self.entries]
         self._cache: dict[tuple[str, str], dict[str, Any]] = {}
         if self.preload:
+            valid_entries: list[tuple[str, str]] = []
             for idx in range(len(self.entries)):
-                self[idx]
+                entry = self.entries[idx]
+                try:
+                    self[idx]
+                    valid_entries.append(entry)
+                except ValueError:
+                    if entry[1] == "blazepose":
+                        skipped_blazepose += 1
+                    else:
+                        raise
+            self.entries = valid_entries
+            self.sample_ids = [sample_id for sample_id, _ in self.entries]
+
+        if skipped_blazepose > 0:
+            print(
+                f"  [KeraalMTLDataset] Skipped {skipped_blazepose} empty/invalid "
+                f"BlazePose JSON file(s) in split={self.split!r}."
+            )
+
+        if self.skeleton_source == "blazepose" and not self.entries:
+            raise FileNotFoundError(
+                f"No valid BlazePose JSON files found under {self.keraal_root} "
+                f"for split={self.split!r}"
+            )
 
     def __len__(self) -> int:
         return len(self.entries)

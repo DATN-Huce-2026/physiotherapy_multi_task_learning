@@ -163,12 +163,19 @@ class TestAnglesPipeline(unittest.TestCase):
             bp_payload = {
                 "positions": {
                     "10.0": make_bp_frame(0.3),
+                    "5.0": {},
                     "1.0": make_bp_frame(0.1),
                     "2.0": make_bp_frame(0.2),
                 }
             }
             bp_path = root / "group1A" / "blazepose" / "bp1.json"
             bp_path.write_text(json.dumps(bp_payload), encoding="utf-8")
+
+            bp_empty_path = root / "group1A" / "blazepose" / "bp_empty.json"
+            bp_empty_path.write_text(
+                json.dumps({"positions": {str(i): {} for i in range(20)}}),
+                encoding="utf-8",
+            )
 
             xyz = load_blazepose_xyz(bp_path)
             self.assertEqual(len(xyz), 3)
@@ -195,7 +202,7 @@ class TestAnglesPipeline(unittest.TestCase):
                 writer.writeheader()
                 for sid, ex_code, kf, bf in [
                     ("S1", "ELK", "group1A/kinect/k1.txt", "group1A/blazepose/bp1.json"),
-                    ("S2", "CTK", "group1A/kinect/k2.txt", "group1A/blazepose/missing.json"),
+                    ("S2", "CTK", "group1A/kinect/k2.txt", "group1A/blazepose/bp_empty.json"),
                 ]:
                     writer.writerow({
                         "sample_id": sid, "group": "group1A", "subject_token": "R1",

@@ -73,7 +73,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         type=Path,
-        default=PROJECT_ROOT / "artifacts" / "Model v8" / "best_model.pt",
+        default=PROJECT_ROOT / "artifacts" / "Model v9" / "best_model.pt",
     )
     parser.add_argument("--pass-score", type=float, default=DEFAULT_PASS_SCORE)
     parser.add_argument(

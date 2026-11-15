@@ -1,0 +1,50 @@
+[
+  {
+    "duration_seconds": 10.2,
+    "visible_ratio": 1.0,
+    "assessment": {
+      "exercise": "RTK",
+      "exercise_name": "RTK - Xoay thân (Rotation du tronc)",
+      "exercise_confidence": 0.5802,
+      "verdict": "ĐÚNG",
+      "passed": true,
+      "score": 92.5,
+      "grade": "Tốt",
+      "correctness": 54.9,
+      "quality": null,
+      "pass_score": 40.0,
+      "min_error_confidence": 0.4,
+      "scoring_mode": "penalty",
+      "head_predictions": {
+        "exercise": {
+          "label": "RTK",
+          "confidence": 0.5802
+        },
+        "exercise_error_class": {
+          "label": "Error3",
+          "confidence": 0.4472
+        },
+        "global_evaluation": {
+          "label": "Correct",
+          "confidence": 0.5157
+        },
+        "error_type": {
+          "label": "none",
+          "confidence": 0.439
+        },
+        "severity": {
+          "label": "LargeError",
+          "confidence": 0.5181
+        },
+        "body_part": {
+          "label": "BothArms",
+          "confidence": 0.8246
+        }
+      },
+      "warnings": [
+        "Model không chắc đây là bài nào (độ tin cậy 58%)."
+      ],
+      "error": null
+    }
+  }
+]

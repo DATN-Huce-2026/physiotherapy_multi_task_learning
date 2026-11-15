@@ -135,6 +135,143 @@ class TestAnglesPipeline(unittest.TestCase):
         self.assertEqual(batch_kimore["xyz"].shape, (3, 90, NUM_ANGLES))
         self.assertEqual(batch_kimore["lengths"].tolist(), [90, 90, 90])
 
+    def test_blazepose_json_loader_and_keraal_dataset_sources(self):
+        import csv
+        import json
+        import tempfile
+        from pathlib import Path
+        from rehab_mtl.datasets.keraal import BLAZEPOSE_LANDMARK_NAMES, load_blazepose_xyz
+        from rehab_mtl.datasets.keraal_dataset import KeraalMTLDataset
+
+        def make_bp_frame(offset: float) -> dict[str, list[float]]:
+            frame = {}
+            for idx, name in enumerate(BLAZEPOSE_LANDMARK_NAMES):
+                frame[name] = [0.5 + 0.01 * idx + offset, 0.5 + 0.01 * idx, -0.1]
+            return frame
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "group1A" / "kinect").mkdir(parents=True)
+            (root / "group1A" / "blazepose").mkdir(parents=True)
+
+            kinect_line = " ".join("0.1" for _ in range(25 * 7))
+            for fname in ("k1.txt", "k2.txt"):
+                (root / "group1A" / "kinect" / fname).write_text(
+                    f"{kinect_line}\n{kinect_line}\n", encoding="utf-8"
+                )
+
+            bp_payload = {
+                "positions": {
+                    "10.0": make_bp_frame(0.3),
+                    "1.0": make_bp_frame(0.1),
+                    "2.0": make_bp_frame(0.2),
+                }
+            }
+            bp_path = root / "group1A" / "blazepose" / "bp1.json"
+            bp_path.write_text(json.dumps(bp_payload), encoding="utf-8")
+
+            xyz = load_blazepose_xyz(bp_path)
+            self.assertEqual(len(xyz), 3)
+            self.assertEqual(len(xyz[0]), 25)
+            self.assertEqual(len(xyz[0][0]), 3)
+            self.assertNotEqual(xyz[0], xyz[2])
+
+            manifest_path = root / "manifest.csv"
+            targets_path = root / "targets.csv"
+            splits_path = root / "splits.csv"
+
+            manifest_fields = [
+                "sample_id", "group", "subject_token", "exercise_code",
+                "kinect_path", "kinect_frame_count", "blazepose_path",
+                "annotator_a_global_evaluation", "annotator_a_error_type",
+                "annotator_a_severity", "annotator_a_body_part",
+                "annotator_a_temporal_error_status", "annotator_a_temporal_error_event_count",
+                "annotator_b_global_evaluation", "annotator_b_error_type",
+                "annotator_b_severity", "annotator_b_body_part",
+                "annotator_b_temporal_error_status", "annotator_b_temporal_error_event_count",
+            ]
+            with manifest_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=manifest_fields)
+                writer.writeheader()
+                for sid, ex_code, kf, bf in [
+                    ("S1", "ELK", "group1A/kinect/k1.txt", "group1A/blazepose/bp1.json"),
+                    ("S2", "CTK", "group1A/kinect/k2.txt", "group1A/blazepose/missing.json"),
+                ]:
+                    writer.writerow({
+                        "sample_id": sid, "group": "group1A", "subject_token": "R1",
+                        "exercise_code": ex_code, "kinect_path": kf, "kinect_frame_count": "2",
+                        "blazepose_path": bf,
+                        "annotator_a_global_evaluation": "Correct", "annotator_a_error_type": "none",
+                        "annotator_a_severity": "", "annotator_a_body_part": "",
+                        "annotator_a_temporal_error_status": "track_absent",
+                        "annotator_a_temporal_error_event_count": "",
+                        "annotator_b_global_evaluation": "Correct", "annotator_b_error_type": "none",
+                        "annotator_b_severity": "", "annotator_b_body_part": "",
+                        "annotator_b_temporal_error_status": "track_absent",
+                        "annotator_b_temporal_error_event_count": "",
+                    })
+
+            target_fields = [
+                "sample_id", "review_flags",
+                "exercise_target", "exercise_mask", "exercise_resolution",
+                "exercise_error_class_target", "exercise_error_class_mask", "exercise_error_class_resolution",
+                "global_evaluation_target", "global_evaluation_mask", "global_evaluation_resolution",
+                "error_type_target", "error_type_mask", "error_type_resolution",
+                "severity_target", "severity_mask", "severity_resolution",
+                "body_part_target", "body_part_mask", "body_part_resolution",
+            ]
+            with targets_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=target_fields)
+                writer.writeheader()
+                for sid, ex_code in (("S1", "ELK"), ("S2", "CTK")):
+                    writer.writerow({
+                        "sample_id": sid, "review_flags": "",
+                        "exercise_target": ex_code, "exercise_mask": "true", "exercise_resolution": "manifest_metadata",
+                        "exercise_error_class_target": "Correct", "exercise_error_class_mask": "true", "exercise_error_class_resolution": "both_agree",
+                        "global_evaluation_target": "Correct", "global_evaluation_mask": "true", "global_evaluation_resolution": "both_agree",
+                        "error_type_target": "none", "error_type_mask": "true", "error_type_resolution": "both_agree",
+                        "severity_target": "", "severity_mask": "false", "severity_resolution": "not_applicable",
+                        "body_part_target": "", "body_part_mask": "false", "body_part_resolution": "not_applicable",
+                    })
+
+            with splits_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=["sample_id", "split"])
+                writer.writeheader()
+                writer.writerow({"sample_id": "S1", "split": "train"})
+                writer.writerow({"sample_id": "S2", "split": "train"})
+
+            ds_kinect = KeraalMTLDataset(
+                root, split="train", manifest_path=manifest_path,
+                targets_path=targets_path, split_path=splits_path,
+                skeleton_source="kinect",
+            )
+            ds_bp = KeraalMTLDataset(
+                root, split="train", manifest_path=manifest_path,
+                targets_path=targets_path, split_path=splits_path,
+                skeleton_source="blazepose",
+            )
+            ds_both = KeraalMTLDataset(
+                root, split="train", manifest_path=manifest_path,
+                targets_path=targets_path, split_path=splits_path,
+                skeleton_source="both", preload=True,
+            )
+
+            self.assertEqual(len(ds_kinect), 2)
+            self.assertEqual(len(ds_bp), 1)
+            self.assertEqual(len(ds_both), 3)
+            self.assertEqual(ds_bp[0]["skeleton_source"], "blazepose")
+            self.assertEqual(ds_bp[0]["xyz"].shape, (90, NUM_ANGLES))
+            self.assertEqual({ds_both[i]["skeleton_source"] for i in range(len(ds_both))}, {"kinect", "blazepose"})
+
+            ds_filtered = KeraalMTLDataset(
+                root, split="train", manifest_path=manifest_path,
+                targets_path=targets_path, split_path=splits_path,
+                skeleton_source="kinect",
+                allowed_exercises=["ELK", "RTK"],
+            )
+            self.assertEqual(len(ds_filtered), 1)
+            self.assertEqual(ds_filtered[0]["exercise_code"], "ELK")
+
 
 if __name__ == "__main__":
     unittest.main()

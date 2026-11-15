@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -62,8 +62,15 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
         preload: bool = False,
         use_angles: bool = True,  # [BỔ SUNG MỚI]: Chuyển chuỗi tọa độ thành 12 góc lâm sàng
         target_length: int = 90,  # [BỔ SUNG MỚI]: Cố định độ dài chuỗi T=90 frames bằng interp1d
+        skeleton_source: str = "kinect",
+        allowed_exercises: Iterable[str] | None = None,
     ) -> None:
         super().__init__()
+        if skeleton_source not in {"kinect", "blazepose", "both"}:
+            raise ValueError(
+                f"invalid skeleton_source: {skeleton_source!r}; "
+                "expected 'kinect', 'blazepose', or 'both'"
+            )
         self.keraal_root = Path(keraal_root)
         self.manifest_path = Path(manifest_path)
         self.targets_path = Path(targets_path)
@@ -74,6 +81,12 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
         self.preload = preload
         self.use_angles = use_angles
         self.target_length = target_length
+        self.skeleton_source = skeleton_source
+        self.allowed_exercises: set[str] | None = (
+            {ex.strip() for ex in allowed_exercises if ex and ex.strip()}
+            if allowed_exercises is not None
+            else None
+        )
 
         self.manifest_rows = _read_csv_by_sample_id(self.manifest_path)
         self.target_rows = _read_csv_by_sample_id(self.targets_path)
@@ -86,33 +99,57 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
                 raise ValueError(
                     f"invalid split: {self.split!r}; expected one of {sorted(valid_splits)}"
                 )
-            self.sample_ids = [
+            base_sample_ids = [
                 sample_id
                 for sample_id, split_row in self.split_rows.items()
                 if split_row.get("split") == self.split
             ]
         else:
-            self.sample_ids = list(self.manifest_rows.keys())
+            base_sample_ids = list(self.manifest_rows.keys())
 
         # Validate that all required sample_ids exist across files
-        for sample_id in self.sample_ids:
+        for sample_id in base_sample_ids:
             if sample_id not in self.manifest_rows:
                 raise ValueError(f"sample_id {sample_id!r} not found in manifest")
             if sample_id not in self.target_rows:
                 raise ValueError(f"sample_id {sample_id!r} not found in targets")
 
-        self._cache: dict[str, dict[str, Any]] = {}
+        if self.allowed_exercises is not None:
+            base_sample_ids = [
+                sample_id
+                for sample_id in base_sample_ids
+                if self.manifest_rows[sample_id].get("exercise_code") in self.allowed_exercises
+            ]
+
+        self.entries: list[tuple[str, str]] = []
+        for sample_id in base_sample_ids:
+            if self.skeleton_source in {"kinect", "both"}:
+                self.entries.append((sample_id, "kinect"))
+            if self.skeleton_source in {"blazepose", "both"}:
+                blazepose_rel = (self.manifest_rows[sample_id].get("blazepose_path") or "").strip()
+                if blazepose_rel and (self.keraal_root / blazepose_rel).is_file():
+                    self.entries.append((sample_id, "blazepose"))
+
+        if self.skeleton_source == "blazepose" and not self.entries:
+            raise FileNotFoundError(
+                f"No BlazePose JSON files found under {self.keraal_root} "
+                f"for split={self.split!r}"
+            )
+
+        self.sample_ids = [sample_id for sample_id, _ in self.entries]
+        self._cache: dict[tuple[str, str], dict[str, Any]] = {}
         if self.preload:
-            for idx in range(len(self.sample_ids)):
+            for idx in range(len(self.entries)):
                 self[idx]
 
     def __len__(self) -> int:
-        return len(self.sample_ids)
+        return len(self.entries)
 
     def __getitem__(self, index: int) -> dict[str, Any]:
-        sample_id = self.sample_ids[index]
-        if self.preload and sample_id in self._cache:
-            return self._cache[sample_id]
+        sample_id, source = self.entries[index]
+        cache_key = (sample_id, source)
+        if self.preload and cache_key in self._cache:
+            return self._cache[cache_key]
 
         manifest_row = self.manifest_rows[sample_id]
         target_row = self.target_rows[sample_id]
@@ -122,6 +159,7 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
             target_row,
             self.keraal_root,
             relative_to_initial_spine_base=self.relative_to_initial_spine_base,
+            skeleton_source=source,
         )
 
         # [CHỈNH SỬA / BỔ SUNG]: Biến đổi đầu vào trước khi đưa vào mô hình
@@ -166,10 +204,11 @@ class KeraalMTLDataset(Dataset[dict[str, Any]]):
             "group": sample["group"],
             "subject_id": sample["subject_id"],
             "exercise_code": sample["exercise_code"],
+            "skeleton_source": source,
         }
 
         if self.preload:
-            self._cache[sample_id] = item
+            self._cache[cache_key] = item
 
         return item
 

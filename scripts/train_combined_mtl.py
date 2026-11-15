@@ -97,19 +97,22 @@ def compute_keraal_class_weights(
         total_samples = sum(counts.values())
         if total_samples == 0:
             continue
+        active_classes = sum(1 for c in range(num_classes) if counts.get(c, 0) > 0)
         weights = []
         for c in range(num_classes):
             cnt = counts.get(c, 0)
             if cnt > 0:
-                raw_w = math.sqrt(total_samples / (num_classes * cnt))
+                raw_w = math.sqrt(total_samples / (max(1, active_classes) * cnt))
                 w = min(raw_w, max_weight)
             else:
-                w = max_weight
+                w = 0.0
             weights.append(w)
         tensor_w = torch.tensor(weights, dtype=torch.float32)
-        mean_w = tensor_w.mean()
-        if mean_w > 0:
-            tensor_w = tensor_w / mean_w
+        nonzero_mask = tensor_w > 0
+        if nonzero_mask.any():
+            mean_w = tensor_w[nonzero_mask].mean()
+            if mean_w > 0:
+                tensor_w[nonzero_mask] = tensor_w[nonzero_mask] / mean_w
         computed[task_name] = tensor_w
     return computed
 
@@ -142,6 +145,26 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=Path,
         default=PROJECT_ROOT / "data" / "keraal" / "keraal_subject_split_preview.csv",
         help="Path to keraal_subject_split_preview.csv",
+    )
+    parser.add_argument(
+        "--keraal-skeleton-source",
+        type=str,
+        choices=["kinect", "blazepose", "both"],
+        default="kinect",
+        help="KERAAL skeleton source: 'kinect' (default), 'blazepose', or 'both'",
+    )
+    parser.add_argument(
+        "--keraal-exercises",
+        nargs="+",
+        default=["ELK", "RTK"],
+        choices=["CTK", "ELK", "RTK"],
+        help="KERAAL exercise codes to keep (default: ELK RTK matching KiMoRe)",
+    )
+    parser.add_argument(
+        "--init-checkpoint",
+        type=Path,
+        default=None,
+        help="Optional checkpoint (.pt) to initialize weights for fine-tuning",
     )
 
     # KiMoRe paths
@@ -313,6 +336,7 @@ def main() -> int:
     print("=" * 70)
     print(f"Device:           {device}")
     print(f"KERAAL Root:      {keraal_root}")
+    print(f"KERAAL Exercises: {', '.join(args.keraal_exercises)} (Source: {args.keraal_skeleton_source})")
     print(f"KiMoRe Root:      {kimore_root}")
     print(f"Epochs:           {args.epochs} | Batch size: {args.batch_size} | Initial LR: {args.lr}")
     print(f"Pooling Strategy: {args.pooling.upper()} (Masked Global Average Pooling)")
@@ -336,6 +360,8 @@ def main() -> int:
         preload=args.preload,
         use_angles=use_angles,
         target_length=target_length,
+        skeleton_source=args.keraal_skeleton_source,
+        allowed_exercises=args.keraal_exercises,
     )
     keraal_val = KeraalMTLDataset(
         keraal_root,
@@ -346,6 +372,8 @@ def main() -> int:
         preload=args.preload,
         use_angles=use_angles,
         target_length=target_length,
+        skeleton_source=args.keraal_skeleton_source,
+        allowed_exercises=args.keraal_exercises,
     )
     keraal_test = KeraalMTLDataset(
         keraal_root,
@@ -356,6 +384,8 @@ def main() -> int:
         preload=args.preload,
         use_angles=use_angles,
         target_length=target_length,
+        skeleton_source=args.keraal_skeleton_source,
+        allowed_exercises=args.keraal_exercises,
     )
 
     print("--> Loading KiMoRe Datasets...")
@@ -431,6 +461,11 @@ def main() -> int:
         input_dim=effective_input_dim,
         pooling=args.pooling,
     ).to(device)
+    if args.init_checkpoint is not None:
+        ckpt = torch.load(args.init_checkpoint, map_location=device)
+        state_dict = ckpt["model_state_dict"] if isinstance(ckpt, dict) and "model_state_dict" in ckpt else ckpt
+        model.load_state_dict(state_dict)
+        print(f"[INFO] Loaded initial weights from: {args.init_checkpoint}")
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.lr,

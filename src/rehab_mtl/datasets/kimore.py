@@ -165,8 +165,16 @@ def load_kimore_sample(
     raw_quality_str = target_row.get("quality_target", "").strip()
     quality_target = float(raw_quality_str) if has_quality and raw_quality_str else 0.0
 
+    raw_exercise = target_row.get("exercise_target") or manifest_row.get("exercise_code")
+    kimore_to_keraal_exercise = {
+        "Es1": "CTK",
+        "Es2": "ELK",
+        "Es3": "RTK",
+    }
+    mapped_exercise = kimore_to_keraal_exercise.get(raw_exercise or "", raw_exercise)
+
     targets: dict[str, str | None] = {
-        "exercise": target_row.get("exercise_target") or manifest_row.get("exercise_code"),
+        "exercise": mapped_exercise,
         "exercise_error_class": None,
         "global_evaluation": None,
         "error_type": None,

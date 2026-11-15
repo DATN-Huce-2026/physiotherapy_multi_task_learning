@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 from collections import Counter
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
+
+import numpy as np
+
+from rehab_mtl.inference.mediapipe_to_kinect import mediapipe_world_to_kinect
 
 JOINT_NAMES = (
     "SpineBase",
@@ -38,6 +44,42 @@ JOINT_NAMES = (
 
 JOINT_COUNT = 25
 VALUES_PER_JOINT = 7
+
+BLAZEPOSE_LANDMARK_NAMES = (
+    "Nose",
+    "Left_eye_inner",
+    "Left_eye",
+    "Left_eye_outer",
+    "Right_eye_inner",
+    "Right_eye",
+    "Right_eye_outer",
+    "Left_ear",
+    "Right_ear",
+    "Mouth_left",
+    "Mouth_right",
+    "Left_shoulder",
+    "Right_shoulder",
+    "Left_elbow",
+    "Right_elbow",
+    "Left_wrist",
+    "Right_wrist",
+    "Left_pinky",
+    "Right_pinky",
+    "Left_index",
+    "Right_index",
+    "Left_thumb",
+    "Right_thumb",
+    "Left_hip",
+    "Right_hip",
+    "Left_knee",
+    "Right_knee",
+    "Left_ankle",
+    "Right_ankle",
+    "Left_heel",
+    "Right_heel",
+    "Left_foot_index",
+    "Right_foot_index",
+)
 VALUES_PER_FRAME = JOINT_COUNT * VALUES_PER_JOINT
 XYZ_VALUES_PER_FRAME = JOINT_COUNT * 3
 EXPECTED_SAMPLE_COUNT = 841
@@ -139,7 +181,7 @@ def load_kinect_xyz(
 
 
 def offset_to_initial_spine_base(
-    frames: list[list[tuple[float, float, float]]],
+    frames: Sequence[Sequence[Sequence[float]]],
 ) -> list[list[tuple[float, float, float]]]:
     """Return a copy with the first-frame SpineBase position as the origin.
 
@@ -163,24 +205,77 @@ def offset_to_initial_spine_base(
     ]
 
 
+def load_blazepose_xyz(
+    path: str | Path,
+) -> list[list[tuple[float, float, float]]]:
+    """Load one KERAAL BlazePose JSON sequence and map it to [T, 25, 3] Kinect space."""
+    path = Path(path)
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+
+    positions = payload.get("positions") if isinstance(payload, dict) else None
+    if not isinstance(positions, dict) or not positions:
+        raise ValueError(f"{path}: expected non-empty 'positions' dict in BlazePose JSON")
+
+    try:
+        frame_keys = sorted(positions.keys(), key=lambda key: float(key))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{path}: non-numeric BlazePose frame key") from exc
+
+    frames_xyz: list[list[tuple[float, float, float]]] = []
+    for key in frame_keys:
+        frame_landmarks = positions[key]
+        if not isinstance(frame_landmarks, dict):
+            raise ValueError(f"{path}: frame {key!r} is not a landmark dict")
+        coords: list[list[float]] = []
+        for landmark_name in BLAZEPOSE_LANDMARK_NAMES:
+            point = frame_landmarks.get(landmark_name)
+            if not isinstance(point, list) or len(point) != 3:
+                raise ValueError(
+                    f"{path}: frame {key!r} missing/invalid landmark {landmark_name!r}"
+                )
+            coords.append([float(point[0]), float(point[1]), float(point[2])])
+
+        kinect_frame = mediapipe_world_to_kinect(np.asarray(coords, dtype=np.float32))
+        frames_xyz.append(
+            [(float(joint[0]), float(joint[1]), float(joint[2])) for joint in kinect_frame]
+        )
+
+    if not frames_xyz:
+        raise ValueError(f"{path}: empty BlazePose skeleton file")
+    return frames_xyz
+
+
 def load_keraal_sample(
     row: dict[str, str],
     keraal_root: str | Path,
     *,
     relative_to_initial_spine_base: bool = False,
+    skeleton_source: str = "kinect",
 ) -> dict[str, Any]:
     """Load one manifest row, preserving labels and optionally offsetting XYZ."""
+    if skeleton_source not in {"kinect", "blazepose"}:
+        raise ValueError(
+            f"invalid skeleton_source: {skeleton_source!r}; expected 'kinect' or 'blazepose'"
+        )
     sample_id = row["sample_id"]
     root = Path(keraal_root)
-    kinect_path = _source_path(
-        root, row["kinect_path"], sample_id=sample_id, field="kinect_path"
-    )
-    try:
-        expected_frames = int(row["kinect_frame_count"])
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"{sample_id}: invalid kinect_frame_count") from exc
+    if skeleton_source == "kinect":
+        kinect_path = _source_path(
+            root, row["kinect_path"], sample_id=sample_id, field="kinect_path"
+        )
+        try:
+            expected_frames = int(row["kinect_frame_count"])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{sample_id}: invalid kinect_frame_count") from exc
 
-    xyz = load_kinect_xyz(kinect_path, expected_frame_count=expected_frames)
+        xyz = load_kinect_xyz(kinect_path, expected_frame_count=expected_frames)
+    else:
+        blazepose_path = _source_path(
+            root, row.get("blazepose_path") or "", sample_id=sample_id, field="blazepose_path"
+        )
+        xyz = load_blazepose_xyz(blazepose_path)
+
     xyz_origin_offset = None
     xyz_transform = "none"
     if relative_to_initial_spine_base:
@@ -244,6 +339,8 @@ def load_keraal_sample(
         "label_masks": label_masks,
         "temporal_annotations": temporal_annotations,
         "kinect_path": row["kinect_path"],
+        "blazepose_path": row.get("blazepose_path"),
+        "skeleton_source": skeleton_source,
     }
 
 
@@ -253,8 +350,9 @@ def load_keraal_mtl_sample(
     keraal_root: str | Path,
     *,
     relative_to_initial_spine_base: bool = False,
+    skeleton_source: str = "kinect",
 ) -> dict[str, Any]:
-    """Join one Kinect sequence with its proposed multi-task targets by ID.
+    """Join one Kinect/BlazePose sequence with its proposed multi-task targets by ID.
 
     Targets come from the review-only target preview CSV. A masked target is
     returned as ``None`` and its false mask is preserved for the training loss.
@@ -270,6 +368,7 @@ def load_keraal_mtl_sample(
         manifest_row,
         keraal_root,
         relative_to_initial_spine_base=relative_to_initial_spine_base,
+        skeleton_source=skeleton_source,
     )
     targets: dict[str, str | None] = {}
     target_masks: dict[str, bool] = {}

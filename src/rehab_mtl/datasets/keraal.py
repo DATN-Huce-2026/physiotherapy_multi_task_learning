@@ -225,16 +225,22 @@ def load_blazepose_xyz(
     frames_xyz: list[list[tuple[float, float, float]]] = []
     for key in frame_keys:
         frame_landmarks = positions[key]
-        if not isinstance(frame_landmarks, dict):
-            raise ValueError(f"{path}: frame {key!r} is not a landmark dict")
+        if not isinstance(frame_landmarks, dict) or not frame_landmarks:
+            continue
         coords: list[list[float]] = []
+        valid_frame = True
         for landmark_name in BLAZEPOSE_LANDMARK_NAMES:
             point = frame_landmarks.get(landmark_name)
             if not isinstance(point, list) or len(point) != 3:
-                raise ValueError(
-                    f"{path}: frame {key!r} missing/invalid landmark {landmark_name!r}"
-                )
-            coords.append([float(point[0]), float(point[1]), float(point[2])])
+                valid_frame = False
+                break
+            try:
+                coords.append([float(point[0]), float(point[1]), float(point[2])])
+            except (TypeError, ValueError):
+                valid_frame = False
+                break
+        if not valid_frame:
+            continue
 
         kinect_frame = mediapipe_world_to_kinect(np.asarray(coords, dtype=np.float32))
         frames_xyz.append(

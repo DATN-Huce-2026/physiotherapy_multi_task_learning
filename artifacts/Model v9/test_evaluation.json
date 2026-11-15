@@ -1,0 +1,45 @@
+{
+  "loss": 0.8226,
+  "task_losses": {
+    "exercise": 0.1309,
+    "exercise_error_class": 1.301,
+    "global_evaluation": 0.9474,
+    "error_type": 1.2994,
+    "severity": 0.8476,
+    "body_part": 0.1953,
+    "quality": 0.1015
+  },
+  "task_accuracies": {
+    "exercise": 0.9592,
+    "exercise_error_class": 0.361,
+    "global_evaluation": 0.6034,
+    "error_type": 0.3745,
+    "severity": 0.5769,
+    "body_part": 0.9677
+  },
+  "task_macro_f1": {
+    "exercise": 0.959,
+    "exercise_error_class": 0.3429,
+    "global_evaluation": 0.3432,
+    "error_type": 0.3521,
+    "severity": 0.5712,
+    "body_part": 0.9595
+  },
+  "task_mae": {
+    "quality": 0.1423
+  },
+  "task_rmse": {
+    "quality": 0.1865
+  },
+  "task_sample_counts": {
+    "exercise": 245,
+    "exercise_error_class": 241,
+    "global_evaluation": 237,
+    "error_type": 243,
+    "severity": 26,
+    "body_part": 31,
+    "quality": 22
+  },
+  "sample_count": 267,
+  "batch_count": 17
+}

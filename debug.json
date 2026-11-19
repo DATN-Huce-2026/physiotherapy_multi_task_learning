@@ -3,48 +3,56 @@
     "duration_seconds": 10.2,
     "visible_ratio": 1.0,
     "assessment": {
-      "exercise": "RTK",
-      "exercise_name": "RTK - Xoay thân (Rotation du tronc)",
-      "exercise_confidence": 0.5802,
-      "verdict": "ĐÚNG",
-      "passed": true,
-      "score": 92.5,
-      "grade": "Tốt",
-      "correctness": 54.9,
+      "exercise": "ELK",
+      "exercise_name": "ELK - Kéo giãn bên (Étirement latéral)",
+      "exercise_confidence": 0.8487,
+      "verdict": "SAI",
+      "passed": false,
+      "score": 38.3,
+      "grade": "Chưa đạt",
+      "correctness": 29.6,
       "quality": null,
       "pass_score": 40.0,
       "min_error_confidence": 0.4,
       "scoring_mode": "penalty",
       "head_predictions": {
         "exercise": {
-          "label": "RTK",
-          "confidence": 0.5802
+          "label": "ELK",
+          "confidence": 0.8487
         },
         "exercise_error_class": {
-          "label": "Error3",
-          "confidence": 0.4472
+          "label": "Error2",
+          "confidence": 0.6588
         },
         "global_evaluation": {
-          "label": "Correct",
-          "confidence": 0.5157
+          "label": "Incomplete",
+          "confidence": 0.7816
         },
         "error_type": {
-          "label": "none",
-          "confidence": 0.439
+          "label": "Error2",
+          "confidence": 0.5615
         },
         "severity": {
-          "label": "LargeError",
-          "confidence": 0.5181
+          "label": "SmallError",
+          "confidence": 0.5463
         },
         "body_part": {
-          "label": "BothArms",
-          "confidence": 0.8246
+          "label": "Spine",
+          "confidence": 0.9414
         }
       },
-      "warnings": [
-        "Model không chắc đây là bài nào (độ tin cậy 58%)."
-      ],
-      "error": null
+      "warnings": [],
+      "error": {
+        "reason": "Incomplete",
+        "error_type": "Error2",
+        "error_type_confidence": 0.6101,
+        "description": "Thân chưa nghiêng đủ",
+        "body_part": "Spine",
+        "body_part_confidence": 0.9414,
+        "severity": "SmallError",
+        "severity_confidence": 0.5463,
+        "message": "Chưa hoàn thành động tác: Thân chưa nghiêng đủ (61%) - bộ phận: cột sống / thân (94%) - mức độ: nhẹ (55%)"
+      }
     }
   }
 ]

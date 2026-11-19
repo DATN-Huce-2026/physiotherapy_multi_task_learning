@@ -75,7 +75,7 @@ def _parse_task_weights(arg_string: str | None) -> dict[str, float]:
 
 def compute_keraal_class_weights(
     train_dataset: KeraalMTLDataset,
-    max_weight: float = 15.0,
+    max_weight: float = 2.5,
 ) -> dict[str, torch.Tensor]:
     """Compute balanced class weights for classification tasks from KERAAL train split."""
     task_mappings = getattr(train_dataset, "task_mappings", TASK_MAPPINGS)
@@ -102,7 +102,7 @@ def compute_keraal_class_weights(
         for c in range(num_classes):
             cnt = counts.get(c, 0)
             if cnt > 0:
-                raw_w = math.sqrt(total_samples / (max(1, active_classes) * cnt))
+                raw_w = (total_samples / (max(1, active_classes) * cnt)) ** 0.35
                 w = min(raw_w, max_weight)
             else:
                 w = 0.0
@@ -156,9 +156,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--keraal-exercises",
         nargs="+",
-        default=["ELK", "RTK"],
+        default=["CTK", "ELK", "RTK"],
         choices=["CTK", "ELK", "RTK"],
-        help="KERAAL exercise codes to keep (default: ELK RTK matching KiMoRe)",
+        help="KERAAL exercise codes to keep (default: CTK ELK RTK)",
     )
     parser.add_argument(
         "--init-checkpoint",

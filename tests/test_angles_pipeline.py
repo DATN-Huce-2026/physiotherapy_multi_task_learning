@@ -55,31 +55,26 @@ class TestAnglesPipeline(unittest.TestCase):
         self.assertTrue(np.all(angles <= math.pi))
 
     def test_trunk_tilt_symmetry_and_torso_twist(self):
+        self.assertEqual(NUM_ANGLES, 12)
         tilt_idx = ANGLE_NAMES.index("trunk_tilt")
-        twist_idx = ANGLE_NAMES.index("torso_twist")
 
-        def make_pose(tilt_x: float = 0.0, shoulder_yaw_rad: float = 0.0) -> np.ndarray:
+        def make_pose(tilt_x: float = 0.0) -> np.ndarray:
             frame = np.zeros((25, 3), dtype=np.float32)
             frame[SPINE_BASE] = [0.0, 0.0, 0.0]
             frame[HIP_LEFT] = [-0.15, 0.0, 0.0]
             frame[HIP_RIGHT] = [0.15, 0.0, 0.0]
             frame[SPINE_SHOULDER] = [tilt_x, 0.5, 0.0]
-            half_w = 0.2
-            dx = half_w * math.cos(shoulder_yaw_rad)
-            dz = half_w * math.sin(shoulder_yaw_rad)
-            frame[SHOULDER_LEFT] = [tilt_x - dx, 0.5, -dz]
-            frame[SHOULDER_RIGHT] = [tilt_x + dx, 0.5, dz]
+            frame[SHOULDER_LEFT] = [tilt_x - 0.2, 0.5, 0.0]
+            frame[SHOULDER_RIGHT] = [tilt_x + 0.2, 0.5, 0.0]
             return frame
 
         tilt_left = extract_angles_from_kinect_frame(make_pose(tilt_x=-0.25))
         tilt_right = extract_angles_from_kinect_frame(make_pose(tilt_x=0.25))
         self.assertAlmostEqual(float(tilt_left[tilt_idx]), float(tilt_right[tilt_idx]), places=5)
         self.assertGreater(float(tilt_left[tilt_idx]), 0.4)
-        self.assertAlmostEqual(float(tilt_left[twist_idx]), 0.0, places=3)
 
-        rotated = extract_angles_from_kinect_frame(make_pose(shoulder_yaw_rad=math.pi / 4))
-        self.assertAlmostEqual(float(rotated[tilt_idx]), 0.0, places=3)
-        self.assertAlmostEqual(float(rotated[twist_idx]), math.pi / 4, places=5)
+        upright = extract_angles_from_kinect_frame(make_pose(tilt_x=0.0))
+        self.assertAlmostEqual(float(upright[tilt_idx]), 0.0, places=3)
 
     def test_resample_sequence_to_fixed_length(self):
         rng = np.random.default_rng(42)

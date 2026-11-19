@@ -8,3 +8,5 @@ data/interim/
 data/processed/
 
 video test/
+debug.json
+artifacts/

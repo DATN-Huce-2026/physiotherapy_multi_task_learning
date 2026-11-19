@@ -73,7 +73,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--model",
         type=Path,
-        default=PROJECT_ROOT / "artifacts" / "Model v9" / "best_model.pt",
+        default=PROJECT_ROOT / "artifacts" / "Model v11" / "best_model.pt",
     )
     parser.add_argument("--pass-score", type=float, default=DEFAULT_PASS_SCORE)
     parser.add_argument(
@@ -288,6 +288,10 @@ def run(args: argparse.Namespace) -> int:
     if not cap.isOpened():
         print(f"Không mở được nguồn video: {args.source}")
         return 1
+    if not is_webcam and hasattr(cv2, "CAP_PROP_ORIENTATION_AUTO"):
+        cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
+    orient_meta = int(cap.get(getattr(cv2, "CAP_PROP_ORIENTATION_META", -1)) or 0) if not is_webcam else 0
+    orient_auto = bool(cap.get(getattr(cv2, "CAP_PROP_ORIENTATION_AUTO", -1))) if not is_webcam else True
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     pose = mp.solutions.pose.Pose(model_complexity=1)
     pose_connections = list(mp.solutions.pose.POSE_CONNECTIONS)
@@ -337,6 +341,13 @@ def run(args: argparse.Namespace) -> int:
             ok, frame = cap.read()
             if not ok:
                 break
+            if not orient_auto and orient_meta in (90, 180, 270):
+                if orient_meta == 90:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+                elif orient_meta == 180:
+                    frame = cv2.rotate(frame, cv2.ROTATE_180)
+                elif orient_meta == 270:
+                    frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
             now = time.monotonic() if is_webcam else frame_index / fps
             frame_index += 1
             # Dùng ảnh chưa lật để trái/phải đúng

@@ -35,7 +35,7 @@ ANKLE_RIGHT = 18
 FOOT_RIGHT = 19
 SPINE_SHOULDER = 20
 
-# Danh sách tên 13 góc giải phẫu
+# Danh sách tên 12 góc giải phẫu
 ANGLE_NAMES = (
     "left_elbow",      # 1. Khuỷu tay trái
     "right_elbow",     # 2. Khuỷu tay phải
@@ -49,7 +49,6 @@ ANGLE_NAMES = (
     "right_ankle",     # 10. Cổ chân phải
     "spine_flexion",   # 11. Gập/duỗi cột sống
     "trunk_tilt",      # 12. Nghiêng thân mình so với phương thẳng đứng Y (đối xứng trái/phải)
-    "torso_twist",     # 13. Xoay thân mình (góc giữa trục vai và trục hông trên mặt phẳng XZ)
 )
 NUM_ANGLES = len(ANGLE_NAMES)
 
@@ -76,32 +75,16 @@ def calculate_angle_3d(a: np.ndarray, b: np.ndarray, c: np.ndarray) -> float:
 
 
 def extract_angles_from_kinect_frame(frame: np.ndarray) -> np.ndarray:
-    """[BỔ SUNG]: Chuyển 1 frame tọa độ Kinect sang vector 13 góc sinh cơ học.
+    """[BỔ SUNG]: Chuyển 1 frame tọa độ Kinect sang vector 12 góc sinh cơ học.
 
     Tham số:
         frame: Mảng shape [25, 3] hoặc [75] chứa tọa độ XYZ của 25 khớp Kinect.
     Trả về:
-        Mảng numpy shape [13] kiểu float32 chứa 13 góc lâm sàng.
+        Mảng numpy shape [12] kiểu float32 chứa 12 góc lâm sàng.
     """
     joints = np.asarray(frame, dtype=np.float32).reshape(25, 3)
     vertical_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
     spine_vec = joints[SPINE_SHOULDER] - joints[SPINE_BASE]
-    shoulder_xz = np.array(
-        [
-            joints[SHOULDER_RIGHT, 0] - joints[SHOULDER_LEFT, 0],
-            0.0,
-            joints[SHOULDER_RIGHT, 2] - joints[SHOULDER_LEFT, 2],
-        ],
-        dtype=np.float32,
-    )
-    hip_xz = np.array(
-        [
-            joints[HIP_RIGHT, 0] - joints[HIP_LEFT, 0],
-            0.0,
-            joints[HIP_RIGHT, 2] - joints[HIP_LEFT, 2],
-        ],
-        dtype=np.float32,
-    )
 
     angles = [
         # 1. Khuỷu tay trái: ShoulderLeft(4) - ElbowLeft(5) - WristLeft(6)
@@ -128,8 +111,6 @@ def extract_angles_from_kinect_frame(frame: np.ndarray) -> np.ndarray:
         calculate_angle_3d(joints[SPINE_BASE], joints[SPINE_MID], joints[SPINE_SHOULDER]),
         # 12. Nghiêng thân mình: Góc giữa trục thân (SpineBase -> SpineShoulder) và phương thẳng đứng Y
         _vector_angle_3d(spine_vec, vertical_up),
-        # 13. Xoay thân mình: Góc giữa trục vai và trục hông chiếu lên mặt phẳng ngang XZ
-        _vector_angle_3d(shoulder_xz, hip_xz),
     ]
     return np.array(angles, dtype=np.float32)
 

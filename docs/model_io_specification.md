@@ -49,12 +49,12 @@ Hiện tại model hỗ trợ danh sách **3 bài tập** phục hồi chức n�
 | **`ELK`** | `ELK - Kéo giãn bên (Étirement latéral)` | Nghiêng thân mình sang bên kết hợp nâng tay kéo giãn |
 | **`RTK`** | `RTK - Xoay thân (Rotation du tronc)` | Giơ tay và xoay vặn thân trên sang hai bên |
 
-*(Nếu người dùng chọn trước bài tập `expected_exercise` nhưng tập sang bài khác, model sẽ trả về trạng thái `"CHƯA CHẤM"` kèm cảnh báo).*
+*(Nếu người dùng chọn trước bài tập `expected_exercise` nhưng tập sang bài khác, hoặc động tác lạ khiến độ tin cậy nhận diện bài tập `< 60%`, model sẽ trả về ngay trạng thái `"SAI"` với điểm `0.0` và cảnh báo sai bài / động tác không khớp).*
 
 ### B. Trạng thái Đúng/Sai, Điểm số & Số Rep
 - **Trạng thái**:
-  - `passed`: `true` (Đúng), `false` (Sai), hoặc `null` (Chưa chấm được do tập sai bài đã chọn).
-  - `verdict`: `"ĐÚNG"`, `"SAI"`, hoặc `"CHƯA CHẤM"`.
+  - `passed`: `true` (Đúng) hoặc `false` (Sai — bao gồm cả sai kỹ thuật, tập nhầm bài, hoặc động tác lạ không nhận diện được).
+  - `verdict`: `"ĐÚNG"` hoặc `"SAI"`.
 - **Điểm số (`score`)**: Tính trên **thang 0 – 100** (số thực làm tròn 1 chữ số thập phân, ví dụ `85.4`), kèm xếp loại `grade`:
   - `Tốt` ($\ge 80$), `Khá` ($65 - 79.9$), `Đạt` ($50 - 64.9$), `Chưa đạt` ($35 - 49.9$), `Kém` ($< 35$).
   - Điểm được tổng hợp từ **Độ đúng phân loại** (`correctness`, thang 0–100) và **Chất lượng chuyển động KiMoRe** (`quality`, thang 0–100).

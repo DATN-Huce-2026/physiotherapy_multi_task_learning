@@ -39,6 +39,16 @@ DEFAULT_QUALITY_WEIGHT = 0.5
 DEFAULT_SCORING_MODE = "penalty"
 VALID_SCORING_MODES = ("penalty", "strict")
 
+# Hiệu chỉnh xác suất nền (Prior Calibration) cho bài ELK do tập train KERAAL bị mất cân bằng cục bộ
+# (trong KERAAL train, riêng bài ELK chỉ có 27 mẫu Correct nhưng có tới 50 mẫu Error2 và 10 mẫu Incomplete).
+EXERCISE_PRIOR_CALIBRATION: dict[str, dict[str, tuple[float, ...]]] = {
+    "ELK": {
+        "global_evaluation": (1.60, 1.00, 0.55, 1.00),
+        "exercise_error_class": (1.45, 1.00, 0.75, 1.00),
+        "error_type": (1.40, 1.00, 0.75, 1.00, 1.00),
+    },
+}
+
 GLOBAL_EVALUATION_VI = {
     "Correct": "Đúng",
     "Incorrect": "Sai động tác",
@@ -97,6 +107,15 @@ def assess(
     descriptions = descriptions or load_descriptions()
     probs = {task: np.asarray(probabilities[task], dtype=float) for task in TASK_LABELS}
 
+    exercise, exercise_conf = _top("exercise", probs["exercise"])
+    if exercise in EXERCISE_PRIOR_CALIBRATION:
+        for task, multipliers in EXERCISE_PRIOR_CALIBRATION[exercise].items():
+            if task in probs and len(probs[task]) == len(multipliers):
+                scaled = probs[task] * np.asarray(multipliers, dtype=float)
+                total = float(scaled.sum())
+                if total > 1e-12:
+                    probs[task] = scaled / total
+
     # Lớp 0 của 3 head này là "đúng"
     head_correctness = [
         probs[task][0] / max(probs[task][0] + probs[task][1:].max(), 1e-12)
@@ -104,7 +123,6 @@ def assess(
     ]
     correctness = 100.0 * float(np.mean(head_correctness))
 
-    exercise, exercise_conf = _top("exercise", probs["exercise"])
     if expected_exercise and expected_exercise != exercise:
         return {
             "exercise": exercise,
@@ -163,7 +181,7 @@ def assess(
         error_conf < min_error_confidence
         and severity == "SmallError"
         and correctness >= MIN_LENIENT_CORRECTNESS
-        and reason == "Incorrect"
+        and reason in ("Incorrect", "Incomplete")
     ):
         passed = True
         is_lenient_pass = True

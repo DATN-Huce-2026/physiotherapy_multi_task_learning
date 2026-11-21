@@ -34,15 +34,15 @@ class AutoAttemptDetector:
     def __init__(
         self,
         *,
-        ready_seconds: float = 1.0,
+        ready_seconds: float = 0.8,
         start_threshold: float = 0.25,
-        return_threshold: float = 0.12,
+        return_threshold: float = 0.20,
         start_hold_seconds: float = 0.15,
         return_hold_seconds: float = 0.8,
         min_attempt_seconds: float = 3.0,
         max_attempt_seconds: float = 60.0,
         pre_roll_seconds: float = 0.6,
-        cooldown_seconds: float = 1.0,
+        cooldown_seconds: float = 0.5,
     ) -> None:
         if not 0 < return_threshold < start_threshold:
             raise ValueError("Ngưỡng trở về phải nằm giữa 0 và ngưỡng bắt đầu")
@@ -96,7 +96,10 @@ class AutoAttemptDetector:
                 self.motion_since = None
             else:
                 self.return_since = None
-                if timestamp - self.attempt_start >= self.max_attempt_seconds:
+                if (
+                    self.attempt_start is not None
+                    and timestamp - self.attempt_start >= self.max_attempt_seconds
+                ):
                     return self._finish(timestamp, "timeout")
             return None
 
@@ -115,6 +118,8 @@ class AutoAttemptDetector:
             return None
 
         if self.state == "armed":
+            if self.baseline is None:
+                return None
             self.pre_roll.append((timestamp, frame.copy()))
             while timestamp - self.pre_roll[0][0] > self.pre_roll_seconds:
                 self.pre_roll.popleft()
@@ -130,6 +135,8 @@ class AutoAttemptDetector:
                 self.motion_since = None
             return None
 
+        if self.attempt_start is None or self.baseline is None:
+            return None
         if timestamp - self.attempt_start >= self.max_attempt_seconds:
             return self._finish(timestamp, "timeout")
         if pose_distance(signature, self.baseline) <= self.return_threshold:

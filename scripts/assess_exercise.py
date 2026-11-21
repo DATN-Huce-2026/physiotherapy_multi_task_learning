@@ -63,7 +63,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--webcam-mode",
         choices=("auto", "manual"),
         default="auto",
-        help="Tự phát hiện một lần tập (mặc định) hoặc dùng SPACE",
+        help="Chế độ webcam: tự phát hiện một lần tập (mặc định) hoặc dùng SPACE",
+    )
+    parser.add_argument(
+        "--video-mode",
+        choices=("clip", "auto"),
+        default="auto",
+        help="Chế độ file video: 'auto' tự tách nhiều lần tập (mặc định), 'clip' coi cả video là 1 lần tập",
     )
     parser.add_argument(
         "--exercise",
@@ -230,7 +236,7 @@ def overlay_lines(state, recorder, last_attempt, now, countdown_end, is_webcam, 
                 if error:
                     lines.append(
                         (
-                            f"Error: {error['error_type']} | {error['body_part']} | "
+                            f"Error: {error['error_type']} | {error['body_part'] or 'N/A'} | "
                             f"{error['severity']}",
                             (0, 180, 255),
                         )
@@ -280,7 +286,9 @@ def run(args: argparse.Namespace) -> int:
     model = load_model(args.model)
     descriptions = load_descriptions()
     is_webcam = args.source.isdigit()
-    auto_mode = is_webcam and args.webcam_mode == "auto"
+    auto_mode = (is_webcam and args.webcam_mode == "auto") or (
+        not is_webcam and args.video_mode == "auto"
+    )
     if is_webcam and not auto_mode and args.no_display:
         print("Chế độ manual cần cửa sổ hiển thị để nhận phím SPACE.")
         return 2
@@ -296,6 +304,11 @@ def run(args: argparse.Namespace) -> int:
     pose = mp.solutions.pose.Pose(model_complexity=1)
     pose_connections = list(mp.solutions.pose.POSE_CONNECTIONS)
     recorder = SkeletonRecorder(args.min_visibility, args.camera_pitch)
+    fallback_recorder = (
+        SkeletonRecorder(args.min_visibility, args.camera_pitch)
+        if (not is_webcam and auto_mode)
+        else None
+    )
     detector = (
         AutoAttemptDetector(
             min_attempt_seconds=MIN_CLIP_SECONDS,
@@ -307,7 +320,7 @@ def run(args: argparse.Namespace) -> int:
 
     if not args.no_display:
         cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
-    state = "idle" if is_webcam else "recording"
+    state = "idle" if (is_webcam or auto_mode) else "recording"
     countdown_end = 0.0
     attempts: list[dict[str, Any]] = []
     last_attempt: dict[str, Any] | None = None
@@ -355,6 +368,8 @@ def run(args: argparse.Namespace) -> int:
             kinect_frame = usable_kinect_frame(
                 results, args.min_visibility, args.camera_pitch
             )
+            if fallback_recorder is not None:
+                fallback_recorder.add_frame(now, kinect_frame)
 
             if detector is not None:
                 was_recording = detector.state == "recording"
@@ -422,9 +437,16 @@ def run(args: argparse.Namespace) -> int:
         cv2.destroyAllWindows()
 
     if detector is not None and detector.state == "recording" and len(recorder):
-        finish_attempt("Lần tập chưa kết thúc khi đóng camera")
+        if is_webcam:
+            finish_attempt("Lần tập chưa kết thúc khi đóng camera")
+        else:
+            finish_attempt()
     elif state == "recording" and len(recorder):
         finish_attempt()
+    if fallback_recorder is not None and not attempts and len(fallback_recorder):
+        last_attempt = evaluate_attempt(fallback_recorder, model, args, descriptions)
+        attempts.append(last_attempt)
+        print_attempt(len(attempts), last_attempt)
 
     assessed = [
         a["assessment"]

@@ -168,15 +168,29 @@ class TestAssess(unittest.TestCase):
         self.assertEqual(error["severity"], "LargeError")
         self.assertIn("tay trái", error["message"])
 
-    def test_khong_cham_khi_du_doan_khac_bai_da_chon(self):
+    def test_tra_ve_sai_khi_du_doan_khac_bai_da_chon(self):
         result = assess(probabilities(exercise=[0.1, 0.8, 0.1]), expected_exercise="CTK")
         self.assertEqual(result["exercise"], "ELK")
-        self.assertEqual(result["verdict"], "CHƯA CHẤM")
-        self.assertIsNone(result["passed"])
-        self.assertIsNone(result["score"])
-        self.assertIsNone(result["error"])
-        self.assertEqual(result["unscored_reason"], "exercise_mismatch")
+        self.assertEqual(result["verdict"], "SAI")
+        self.assertIs(result["passed"], False)
+        self.assertEqual(result["score"], 0.0)
+        self.assertEqual(result["grade"], "Kém")
+        self.assertEqual(result["failure_reason"], "exercise_mismatch")
+        self.assertEqual(result["expected_exercise"], "CTK")
+        self.assertIsNotNone(result["error"])
+        self.assertEqual(result["error"]["error_type"], "WrongExercise")
         self.assertTrue(any("CTK" in warning for warning in result["warnings"]))
+
+    def test_canh_bao_sai_khi_do_tin_cay_bai_tap_thap(self):
+        result = assess(probabilities(exercise=[0.4, 0.35, 0.25]), expected_exercise="CTK")
+        self.assertEqual(result["verdict"], "SAI")
+        self.assertIs(result["passed"], False)
+        self.assertEqual(result["score"], 0.0)
+        self.assertEqual(result["grade"], "Kém")
+        self.assertEqual(result["failure_reason"], "unknown_exercise")
+        self.assertIsNotNone(result["error"])
+        self.assertEqual(result["error"]["error_type"], "UnknownExercise")
+        self.assertTrue(any("không khớp" in warning for warning in result["warnings"]))
 
 
 if __name__ == "__main__":

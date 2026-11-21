@@ -34,6 +34,7 @@ CORRECT_HEADS = ("global_evaluation", "exercise_error_class", "error_type")
 ERROR_CODES = ("Error1", "Error2", "Error3", "Other")
 DEFAULT_PASS_SCORE = 40.0
 DEFAULT_MIN_ERROR_CONFIDENCE = 0.40
+DEFAULT_MIN_EXERCISE_CONFIDENCE = 0.60
 MIN_LENIENT_CORRECTNESS = 30.0
 DEFAULT_QUALITY_WEIGHT = 0.5
 DEFAULT_SCORING_MODE = "penalty"
@@ -90,6 +91,7 @@ def assess(
     expected_exercise: str | None = None,
     pass_score: float = DEFAULT_PASS_SCORE,
     min_error_confidence: float = DEFAULT_MIN_ERROR_CONFIDENCE,
+    min_exercise_confidence: float = DEFAULT_MIN_EXERCISE_CONFIDENCE,
     quality_weight: float = DEFAULT_QUALITY_WEIGHT,
     scoring_mode: str = DEFAULT_SCORING_MODE,
     descriptions: dict[str, Any] | None = None,
@@ -98,6 +100,8 @@ def assess(
         raise ValueError("pass_score phải nằm trong (0, 100)")
     if not 0 <= min_error_confidence <= 1:
         raise ValueError("min_error_confidence phải nằm trong [0, 1]")
+    if not 0 <= min_exercise_confidence <= 1:
+        raise ValueError("min_exercise_confidence phải nằm trong [0, 1]")
     if not 0 <= quality_weight <= 1:
         raise ValueError("quality_weight phải nằm trong [0, 1]")
     if scoring_mode not in VALID_SCORING_MODES:
@@ -116,6 +120,86 @@ def assess(
                 if total > 1e-12:
                     probs[task] = scaled / total
 
+    exercise_name = descriptions["exercise_names"].get(exercise, exercise)
+    head_predictions = {
+        task: dict(zip(("label", "confidence"), _top(task, probs[task])))
+        for task in TASK_LABELS
+    }
+
+    if expected_exercise and expected_exercise != exercise:
+        expected_name = descriptions["exercise_names"].get(expected_exercise, expected_exercise)
+        message = (
+            f"Sai bài tập: hệ thống nhận diện {exercise_name} ({exercise_conf:.0%}), "
+            f"khác bài đã chọn {expected_name}."
+        )
+        return {
+            "exercise": exercise,
+            "exercise_name": exercise_name,
+            "exercise_confidence": exercise_conf,
+            "verdict": "SAI",
+            "passed": False,
+            "score": 0.0,
+            "grade": grade_of(0.0),
+            "correctness": 0.0,
+            "quality": None,
+            "pass_score": pass_score,
+            "min_error_confidence": min_error_confidence,
+            "min_exercise_confidence": min_exercise_confidence,
+            "scoring_mode": scoring_mode,
+            "head_predictions": head_predictions,
+            "warnings": [message],
+            "error": {
+                "reason": "WrongExercise",
+                "error_type": "WrongExercise",
+                "error_type_confidence": exercise_conf,
+                "description": f"Tập sai bài: cần tập {expected_name}, nhưng đang tập {exercise_name}",
+                "body_part": None,
+                "body_part_confidence": None,
+                "severity": "LargeError",
+                "severity_confidence": exercise_conf,
+                "message": message,
+            },
+            "failure_reason": "exercise_mismatch",
+            "expected_exercise": expected_exercise,
+        }
+
+    if exercise_conf < min_exercise_confidence:
+        message = (
+            f"Động tác không khớp với các bài tập đã học "
+            f"(độ tin cậy nhận diện bài tập chỉ đạt {exercise_conf:.0%}, "
+            f"dưới ngưỡng {min_exercise_confidence:.0%})."
+        )
+        return {
+            "exercise": exercise,
+            "exercise_name": exercise_name,
+            "exercise_confidence": exercise_conf,
+            "verdict": "SAI",
+            "passed": False,
+            "score": 0.0,
+            "grade": grade_of(0.0),
+            "correctness": 0.0,
+            "quality": None,
+            "pass_score": pass_score,
+            "min_error_confidence": min_error_confidence,
+            "min_exercise_confidence": min_exercise_confidence,
+            "scoring_mode": scoring_mode,
+            "head_predictions": head_predictions,
+            "warnings": [message],
+            "error": {
+                "reason": "UnknownExercise",
+                "error_type": "UnknownExercise",
+                "error_type_confidence": round(1.0 - exercise_conf, 4),
+                "description": "Động tác không thuộc các bài tập đã được huấn luyện (CTK, ELK, RTK)",
+                "body_part": None,
+                "body_part_confidence": None,
+                "severity": "LargeError",
+                "severity_confidence": round(1.0 - exercise_conf, 4),
+                "message": message,
+            },
+            "failure_reason": "unknown_exercise",
+            **({"expected_exercise": expected_exercise} if expected_exercise else {}),
+        }
+
     # Lớp 0 của 3 head này là "đúng"
     head_correctness = [
         probs[task][0] / max(probs[task][0] + probs[task][1:].max(), 1e-12)
@@ -123,38 +207,7 @@ def assess(
     ]
     correctness = 100.0 * float(np.mean(head_correctness))
 
-    if expected_exercise and expected_exercise != exercise:
-        return {
-            "exercise": exercise,
-            "exercise_name": descriptions["exercise_names"].get(exercise, exercise),
-            "exercise_confidence": exercise_conf,
-            "verdict": "CHƯA CHẤM",
-            "passed": None,
-            "score": None,
-            "grade": None,
-            "correctness": None,
-            "quality": None,
-            "pass_score": pass_score,
-            "min_error_confidence": min_error_confidence,
-            "scoring_mode": scoring_mode,
-            "head_predictions": {
-                task: dict(zip(("label", "confidence"), _top(task, probs[task])))
-                for task in TASK_LABELS
-            },
-            "warnings": [
-                f"Model dự đoán {exercise} ({exercise_conf:.0%}), khác bài đã chọn "
-                f"{expected_exercise}; chưa thể chấm đúng/sai hoặc gán lỗi cho lần tập này."
-            ],
-            "error": None,
-            "unscored_reason": "exercise_mismatch",
-            "expected_exercise": expected_exercise,
-        }
-
     warnings: list[str] = []
-    if exercise_conf < 0.6:
-        warnings.append(
-            f"Model không chắc đây là bài nào (độ tin cậy {exercise_conf:.0%})."
-        )
 
     # Trích xuất thông tin lỗi tiềm năng
     eec = dict(zip(TASK_LABELS["exercise_error_class"], probs["exercise_error_class"]))

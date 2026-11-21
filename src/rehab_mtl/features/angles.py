@@ -52,6 +52,13 @@ ANGLE_NAMES = (
 )
 NUM_ANGLES = len(ANGLE_NAMES)
 
+# Tư thế chuẩn hóa gốc cho 6 góc thân dưới (left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle)
+# Giúp loại bỏ độ lệch tĩnh giữa tư thế đứng (webcam/KiMoRe) và tư thế ngồi ghế (KERAAL) nhưng vẫn giữ nguyên biến thiên chuyển động.
+LOWER_BODY_SLICE = slice(4, 10)
+KERAAL_NEUTRAL_LOWER_BODY_RAD = np.radians(
+    [122.0, 128.0, 105.0, 112.0, 110.0, 122.0]
+).astype(np.float32)
+
 
 def _vector_angle_3d(u: np.ndarray, v: np.ndarray) -> float:
     """Tính góc 3D giữa hai vector u và v trong khoảng [0, pi] (radian)."""
@@ -156,10 +163,13 @@ def resample_sequence_to_fixed_length(
 def transform_kinect_sequence_to_angles(
     sequence: np.ndarray,
     target_length: int = 90,
+    *,
+    normalize_lower_body: bool = True,
 ) -> np.ndarray:
     """[BỔ SUNG]: Hàm biến đổi toàn diện từ chuỗi tọa độ sang chuỗi 12 góc 90 frames.
 
-    Nhận chuỗi [T, 25, 3] hoặc [T, 75] -> Trích xuất 12 góc từng frame [T, 12] -> Nội suy về [90, 12].
+    Nhận chuỗi [T, 25, 3] hoặc [T, 75] -> Trích xuất 12 góc từng frame [T, 12]
+    -> Chuẩn hóa góc nền thân dưới (bất biến đứng/ngồi) -> Nội suy về [90, 12].
     """
     seq = np.asarray(sequence, dtype=np.float32)
     t_frames = len(seq)
@@ -168,6 +178,15 @@ def transform_kinect_sequence_to_angles(
     angles_list = [extract_angles_from_kinect_frame(seq[t]) for t in range(t_frames)]
     angles_seq = np.stack(angles_list, axis=0)  # Shape: [T, 12]
 
-    # 2. Đồng bộ thời gian về target_length (90 frames)
+    # 2. Neo 6 góc thân dưới (hông, gối, cổ chân) về tư thế tham chiếu KERAAL + độ lệch theo thời gian
+    if normalize_lower_body and len(angles_seq) > 0:
+        lower_delta = angles_seq[:, LOWER_BODY_SLICE] - angles_seq[0:1, LOWER_BODY_SLICE]
+        angles_seq[:, LOWER_BODY_SLICE] = np.clip(
+            KERAAL_NEUTRAL_LOWER_BODY_RAD + lower_delta,
+            0.0,
+            float(np.pi),
+        )
+
+    # 3. Đồng bộ thời gian về target_length (90 frames)
     angles_resampled = resample_sequence_to_fixed_length(angles_seq, target_length=target_length)
     return angles_resampled

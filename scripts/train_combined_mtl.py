@@ -103,6 +103,8 @@ def compute_keraal_class_weights(
             cnt = counts.get(c, 0)
             if cnt > 0:
                 raw_w = (total_samples / (max(1, active_classes) * cnt)) ** 0.35
+                if c == 0 and task_name in ("global_evaluation", "exercise_error_class", "error_type"):
+                    raw_w *= 1.25
                 w = min(raw_w, max_weight)
             else:
                 w = 0.0

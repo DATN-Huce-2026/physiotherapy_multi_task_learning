@@ -85,8 +85,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--quality-weight",
         type=float,
-        default=0.0,
-        help="Tỉ trọng head quality KiMoRe trong điểm cuối (mặc định: 0)",
+        default=0.3,
+        help="Tỉ trọng head quality KiMoRe trong điểm cuối (mặc định: 0.3)",
     )
     parser.add_argument(
         "--scoring-mode",
